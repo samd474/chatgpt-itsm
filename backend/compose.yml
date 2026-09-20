@@ -1,0 +1,69 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/postgresql/data 
+    healthcheck:
+      test: ["CMD_SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    redis:
+      image: redis:7-alpine
+      command: redis-server --appendonly yes
+      volumes:
+        redis_data:/data 
+    backend:
+      build: ./backend
+      env_file: .env 
+      command: python manage.py runserver 0.0.0.0:8000
+      volumes:
+        - ./backend:/app 
+        - media_data: /app/media 
+      ports:
+        - "8000:8000"
+      depends_on:
+        db:
+          condition: service_healthy
+        redis:
+          condition: service_started
+      worker:
+        build: ./backend
+        env_file: .env
+        command: celery -A config worker -l INFO
+        volumes:
+         - ./backend:/app 
+         - media_data:/app/media
+        depends_on:
+          - backend
+          - redis
+      beat:
+        build: ./backend
+        env_file: .env
+        command: celery -A config beat -l INFO
+        volumes:
+          - ./backend/app
+        depends_on:
+          - backend
+          - redis
+      frontend:
+        build: ./frontend
+        environment:
+          VITE_API_BASE_URL: http://localhost:8000/api 
+        volumes:
+          -./frontend:/app
+          -/app/node_modules
+        ports:
+          - "5173:5173"
+        depends_on:
+          - backend
+volumes:
+  postgres_data:
+  redis_data:
+  media_data:
+  
+          
