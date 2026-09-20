@@ -1,0 +1,14 @@
+Django~=5.2
+djangorestframework
+django-filter
+django-cors-headers
+psycopg[binary]
+celery
+redis
+gunicorn
+Pillow
+python-magic 
+whitenoise
+pytest
+pytest-django
+factory-boy
