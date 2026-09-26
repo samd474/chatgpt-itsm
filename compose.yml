@@ -68,6 +68,6 @@ services:
       - backend
 
 volumes:
-  postgres_data: {}
-  redis_data: {}
-  media_data: {}
+  postgres_data: 
+  redis_data: 
+  media_data: 
