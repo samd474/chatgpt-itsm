@@ -1,5 +1,11 @@
 from django.conf import settings
 from django.db import models
+import uuid
+
+class HelpRequests(models.Model):
+    class RequestType(models.TextChoices):
+        INCIDENT = "incident", "Incident"
+        REQUEST = "request", "Request"
 
 class SupportGroups(models.Model):
     name = models.CharField(max_length=120, unique=True)
