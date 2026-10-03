@@ -55,18 +55,18 @@ services:
       - backend
       - redis
 
-  frontend:
-    build: ./frontend
-    environment:
-      VITE_API_BASE_URL: http://localhost:8000/api
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    ports:
-      - "5173:5173"
-    depends_on:
-      - backend
-
+  #frontend:
+    #build: ./frontend
+    #environment:
+     # VITE_API_BASE_URL: http://localhost:8000/api
+    #volumes:
+     # - ./frontend:/app
+     # - /app/node_modules
+    #ports:
+     # - "5173:5173"
+    #depends_on:
+     # - backend
+  
 volumes:
   postgres_data: 
   redis_data: 

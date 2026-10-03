@@ -1,6 +1,7 @@
+import uuid
 from django.conf import settings
 from django.db import models
-import uuid
+
 
 class SupportGroups(models.Model):
     name = models.CharField(max_length=120, unique=True)
@@ -54,7 +55,7 @@ class HelpRequests(models.Model):
     resolution_body = models.TextField(blank=True)
     first_response_time = models.DateTimeField(null=True, blank=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
-    closed_at = models.DateTimeField(null=True blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now_add=True)
 class Meta:
