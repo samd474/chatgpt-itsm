@@ -57,7 +57,7 @@ class HelpRequests(models.Model):
         HIGH = "high", "High"
         NORMAL = "normal", "Normal"
         LOW = "low", "Low"
-
+    
     class Meta:
         indexes = [
             models.Index(fields=["status", "impact"]),
@@ -99,6 +99,15 @@ class HelpRequestComment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     last_updated = models.DateTimeField(null=True, blank=True)
 class Attachment(models.Model):
+    HelpRequests = models.ForeignKey(HelpRequests, on_delete=models.CASCADE, related_name="attachments")
+    comment = models.ForeignKey(HelpRequestComment, null=True, blank=True, on_delete=models.CASCADE, related_name="attachment")
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    file_name = models.FileField(upload_to="request_attachments/%Y/%M")
+    original_name = models.CharField(max_length=255)
+    size_bytes = models.BigIntegerField()
+    content_type = models.CharField(max_length=120)
+    sha256 = models.CharField(64)
+    created_at = models.DateTimeField(auto_now_add=True)
     
 
 
