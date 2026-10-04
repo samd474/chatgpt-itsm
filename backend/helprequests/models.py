@@ -67,7 +67,7 @@ class HelpRequests(models.Model):
 
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     request_number = models.CharField(max_length=24)
-    request_type = models.CharField(max_length=16, choices=RequestType.choices)
+    request_type = models.CharField(max_length=30, choices=RequestType.choices)
     subject = models.CharField(max_length=240)
     requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="open_requests")
     technician = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="my_assigned_requests")
@@ -76,7 +76,7 @@ class HelpRequests(models.Model):
     service = models.ForeignKey(Services, null=True, blank=True, on_delete=models.PROTECT)
     impact = models.CharField(max_length=20, choices=Impact.choices, default=Impact.USER)
     urgency = models.CharField(max_length=20, choices=Urgency.choices, default=Urgency.NORMAL)
-    status = models.CharField(max_length=20, choices=RequestStatus.choices, default=RequestStatus.NEW)
+    status = models.CharField(max_length=30, choices=RequestStatus.choices, default=RequestStatus.NEW)
     request_payload = models.JSONField(default=dict, blank=True)
     resolution_code = models.CharField(max_length=60, blank=True)
     resolution_body = models.TextField(blank=True)
@@ -108,7 +108,7 @@ class Attachment(models.Model):
     content_type = models.CharField(max_length=120)
     sha256 = models.CharField(64)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
 
 
 
