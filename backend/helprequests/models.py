@@ -70,6 +70,19 @@ class Meta:
         models.Index(fields=["-created_at"])
     ]
 
+    class HelpRequestComment(models.Model):
+        class Visibility(models.TextChoices):
+            PUBLIC = "public", "PUBLIC"
+            PRIVATE = "private", "PRIVATE"
+        HelpRequests = models.ForeignKey(HelpRequests, on_delete=models.CASCADE, related_name="comments")
+        Requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+        Body = models.TextField()
+        Visibility = models.CharField(max_length=10, choices=Visibility.choices default=Visibility.PUBLIC)
+        created_at = models.DateTimeField(auto_now_add=True)
+        last_updated = models.DateTimeField(null=True blank=True)
+        
+
+
 
 
 
