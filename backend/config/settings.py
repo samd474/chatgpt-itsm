@@ -179,4 +179,4 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-
+AUTH_USER_MODEL = "users.User"
