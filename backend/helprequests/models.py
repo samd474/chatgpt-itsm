@@ -1,6 +1,10 @@
 import uuid
+import django
 from django.conf import settings
 from django.db import models
+from django.db import transaction
+from .models import Ticket
+@transaction.atomic
 
 
 class SupportGroups(models.Model):
@@ -22,7 +26,9 @@ class Services(models.Model):
     managers = models.ForeignKey(SupportGroups, null=True, blank=True, on_delete=models.SET_NULL)
     active = models.BooleanField(default=True)
 
-
+def create_help_request(**data):
+    ticket = HelpRequests.object.create(**data)
+    prefix = "INC" if HelpRequests.RequestType == HelpRequests.RequestType.INCIDENT else HelpRequests.RequestType.REQUEST
 
 class HelpRequests(models.Model):
     class RequestType(models.TextChoices):
