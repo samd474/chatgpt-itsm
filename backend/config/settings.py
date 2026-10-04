@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'django_filters',
     'corsheaders',
     'users',
-    'requests',
+    'helprequests',
     'knowledge_base',
     'slas',
     'audit',

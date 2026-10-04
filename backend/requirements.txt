@@ -12,3 +12,4 @@ whitenoise
 pytest
 pytest-django
 factory-boy
+requests
