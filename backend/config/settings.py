@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_filters',
     'corsheaders',
-    'users',
+    'accounts',
     'helprequests',
     'knowledge_base',
     'slas',
@@ -179,4 +179,4 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-AUTH_USER_MODEL = "users.User"
+AUTH_USER_MODEL = "accounts.User"
