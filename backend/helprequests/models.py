@@ -98,6 +98,7 @@ class HelpRequestComment(models.Model):
     visibility = models.CharField(max_length=10, choices=Visibility.choices, default=Visibility.PUBLIC)
     created_at = models.DateTimeField(auto_now_add=True)
     last_updated = models.DateTimeField(null=True, blank=True)
+
 class Attachment(models.Model):
     HelpRequests = models.ForeignKey(HelpRequests, on_delete=models.CASCADE, related_name="attachments")
     comment = models.ForeignKey(HelpRequestComment, null=True, blank=True, on_delete=models.CASCADE, related_name="attachment")

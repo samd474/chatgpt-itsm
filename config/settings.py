@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'helprequests',
     'knowledge_base', 
     'slas',
-    'audit', 
+    'reports', 
     'notifications'
 ]
 

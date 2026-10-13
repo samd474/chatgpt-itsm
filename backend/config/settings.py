@@ -42,9 +42,9 @@ INSTALLED_APPS = [
     'corsheaders',
     'accounts',
     'helprequests',
-    'knowledge_base',
-    'slas',
-    'audit',
+    'solutions',
+    'rules',
+    'reports',
     'alerts'
 ]
 
