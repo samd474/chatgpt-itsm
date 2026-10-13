@@ -22,12 +22,12 @@ services:
   backend:
     build: backend
     env_file: .env
-    command: python manage.py runserver 0.0.0.0:8001
+    command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - ./backend:/app
       - media_data:/app/media
     ports:
-      - "8001:8000"
+      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -58,7 +58,7 @@ services:
   frontend:
     build: ./frontend
     environment:
-      VITE_API_BASE_URL: http://localhost:8000/api
+      VITE_API_BASE_URL: http://localhost:8001/api
     volumes:
       - ./frontend:/app
       - /app/node_modules
