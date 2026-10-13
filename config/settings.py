@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'knowledge_base', 
     'slas',
     'reports', 
-    'notifications'
+    'notifications',
+    'audit.apps.AuditConfig'
 ]
 
 MIDDLEWARE = [
