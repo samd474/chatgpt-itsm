@@ -32,11 +32,7 @@ class HelpRequestsReadSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "public_id",
-            "number",
-            "requester",
-            "assigned_to",
-            "assignment_group",
-            "status",
+            "request_number",
             "first_response_time",
             "resolution_time",
             "closed_timestamp",
@@ -56,5 +52,5 @@ class RequesterHelpRequestsUpdateSerializer(serializers.ModelSerializer):
 class HelpRequestsCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = HelpRequests
-        fields = ["request_type", "title", "description", "category", "service", "client_request_id"]
+        fields = ["request_type", "title", "description", "category", "service", "public_id", ]
     
