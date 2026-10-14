@@ -35,7 +35,7 @@ class HelpRequestsViewSet(ModelViewSet):
     def get_queryset(self):
         qs = HelpRequests.objects.select_related(
             "requester",
-            "assignee",
+            "Technician",
             "assignment_group",
             "category",
             "service",

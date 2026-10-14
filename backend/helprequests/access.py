@@ -8,7 +8,7 @@ def visible_HelpRequests(user, qs):
     if user.groups.filter(name__in=["Technician", "Manager"]).exists():
         visibility_filter = Q(
             Q(assignment_group_member=user),
-            Q(assignee=user),
+            Q(Technician=user),
             Q(requester=user),
             _connector=Q.OR,
         )
