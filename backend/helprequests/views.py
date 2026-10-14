@@ -2,23 +2,23 @@
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 
-from .models import Ticket
+from .models import HelpRequest
 from .serializers import (
-    TicketCreateSerializer,
-    TicketReadSerializer,
-    TechnicianTicketUpdateSerializer,
-    RequesterTicketUpdateSerializer,
+    HelpRequestCreateSerializer,
+    HelpRequestReadSerializer,
+    TechnicianHelpRequestUpdateSerializer,
+    RequesterHelpRequestUpdateSerializer,
 )
 
-from services import create_ticket_from_serializer, visible_tickets
+from services import create_HelpRequest_from_serializer, visible_HelpRequests
 
 
-class TicketViewSet(ModelViewSet):
+class HelpRequestViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
     lookup_field = "public_id"
 
     filterset_fields = [
-        "ticket_type",
+        "HelpRequest_type",
         "status",
         "priority",
         "assignment_group",
@@ -34,7 +34,7 @@ class TicketViewSet(ModelViewSet):
     ]
 
     def get_queryset(self):
-        qs = Ticket.objects.select_related(
+        qs = HelpRequest.objects.select_related(
             "requester",
             "assignee",
             "assignment_group",
@@ -42,25 +42,25 @@ class TicketViewSet(ModelViewSet):
             "service",
         ).all()
 
-        return visible_tickets(self.request.user, qs)
+        return visible_HelpRequests(self.request.user, qs)
 
     def get_serializer_class(self):
 
         if self.action == "create":
-            return TicketCreateSerializer
+            return HelpRequestCreateSerializer
 
         if self.action in {"update", "partial_update"}:
             if self.request.user.groups.filter(
                 name__in=["Technician", "Manager", "Administrator"]
             ).exists():
-                return TechnicianTicketUpdateSerializer
+                return TechnicianHelpRequestUpdateSerializer
 
-            return RequesterTicketUpdateSerializer
+            return RequesterHelpRequestUpdateSerializer
 
-        return TicketReadSerializer
+        return HelpRequestReadSerializer
 
     def perform_create(self, serializer):
-        create_ticket_from_serializer(
+        create_HelpRequest_from_serializer(
             request=self.request,
             serializer=serializer,
         )
