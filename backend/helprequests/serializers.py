@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from HelpRequests import models
+from .models import HelpRequests
 
 
 class HelpRequestReadSerializer(serializers.ModelSerializer):
