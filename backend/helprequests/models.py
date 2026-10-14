@@ -13,7 +13,7 @@ class PermissionGroups(models.Model):
     name = models.CharField(max_length=120, unique=True)
     members = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="permission_groups", blank=True)
     managers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="managed_permission_groups", blank=True)
-    active = models.BooleanField(default=True)
+    active = models.BooleanField
 
 
 class Category(models.Model):
