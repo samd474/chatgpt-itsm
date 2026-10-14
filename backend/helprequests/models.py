@@ -33,6 +33,8 @@ def create_help_request(**data):
 
 
 class HelpRequests(models.Model):
+    objects = models.Manager()
+
     class RequestType(models.TextChoices):
         INCIDENT = "incident", "Incident"
         REQUEST = "request", "Request"
