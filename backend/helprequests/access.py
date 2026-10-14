@@ -1,6 +1,6 @@
 from django.db.models import Q
 
-def visible_HelpRequest(user, qs):
+def visible_HelpRequests(user, qs):
     if user.is_superuser or user.groups.filter(name="Administrator").exists():
         return qs
     if user.groups.filter(name="Auditor").exists():

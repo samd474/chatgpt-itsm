@@ -29,11 +29,11 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('name', models.CharField(max_length=120)),
                 ('active', models.BooleanField(default=True)),
-                ('parent', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to='helprequests.category')),
+                ('parent', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to='HelpRequestss.category')),
             ],
         ),
         migrations.CreateModel(
-            name='HelpRequests',
+            name='HelpRequestss',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('public_id', models.UUIDField(default=uuid.uuid4, editable=False, unique=True)),
@@ -51,14 +51,14 @@ class Migration(migrations.Migration):
                 ('closed_at', models.DateTimeField(blank=True, null=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('category', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to='helprequests.category')),
+                ('category', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to='HelpRequestss.category')),
                 ('requester', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='open_requests', to=settings.AUTH_USER_MODEL)),
                 ('technician', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='my_assigned_requests', to=settings.AUTH_USER_MODEL)),
-                ('service', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to='helprequests.services')),
+                ('service', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to='HelpRequestss.services')),
             ],
         ),
         migrations.CreateModel(
-            name='HelpRequestComment',
+            name='HelpRequestsComment',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('body', models.TextField()),
@@ -66,7 +66,7 @@ class Migration(migrations.Migration):
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('last_updated', models.DateTimeField(blank=True, null=True)),
                 ('requester', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
-                ('help_request', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='comments', to='helprequests.helprequests')),
+                ('help_request', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='comments', to='HelpRequestss.HelpRequestss')),
             ],
         ),
         migrations.CreateModel(
@@ -80,8 +80,8 @@ class Migration(migrations.Migration):
                 ('sha256', models.CharField(verbose_name=64)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('uploaded_by', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
-                ('comment', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='attachment', to='helprequests.helprequestcomment')),
-                ('HelpRequests', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attachments', to='helprequests.helprequests')),
+                ('comment', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='attachment', to='HelpRequestss.HelpRequestscomment')),
+                ('HelpRequestss', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attachments', to='HelpRequestss.HelpRequestss')),
             ],
         ),
         migrations.CreateModel(
@@ -106,23 +106,23 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='services',
             name='managers',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='helprequests.supportgroups'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='HelpRequestss.supportgroups'),
         ),
         migrations.AddField(
-            model_name='helprequests',
+            model_name='HelpRequestss',
             name='assignment_group',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='helprequests.supportgroups'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='HelpRequestss.supportgroups'),
         ),
         migrations.AddIndex(
-            model_name='helprequests',
-            index=models.Index(fields=['status', 'impact'], name='helprequest_status_13214e_idx'),
+            model_name='HelpRequestss',
+            index=models.Index(fields=['status', 'impact'], name='HelpRequests_status_13214e_idx'),
         ),
         migrations.AddIndex(
-            model_name='helprequests',
-            index=models.Index(fields=['assignment_group'], name='helprequest_assignm_b197a8_idx'),
+            model_name='HelpRequestss',
+            index=models.Index(fields=['assignment_group'], name='HelpRequests_assignm_b197a8_idx'),
         ),
         migrations.AddIndex(
-            model_name='helprequests',
-            index=models.Index(fields=['-created_at'], name='helprequest_created_900532_idx'),
+            model_name='HelpRequestss',
+            index=models.Index(fields=['-created_at'], name='HelpRequests_created_900532_idx'),
         ),
     ]

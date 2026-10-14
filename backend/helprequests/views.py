@@ -2,23 +2,23 @@
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 
-from .models import HelpRequest
+from .models import HelpRequests
 from .serializers import (
-    HelpRequestCreateSerializer,
-    HelpRequestReadSerializer,
-    TechnicianHelpRequestUpdateSerializer,
-    RequesterHelpRequestUpdateSerializer,
+    HelpRequestsCreateSerializer,
+    HelpRequestsReadSerializer,
+    TechnicianHelpRequestsUpdateSerializer,
+    RequesterHelpRequestsUpdateSerializer,
 )
 
-from services import create_HelpRequest_from_serializer, visible_HelpRequests
+from services import create_HelpRequests_from_serializer, visible_HelpRequestss
 
 
-class HelpRequestViewSet(ModelViewSet):
+class HelpRequestsViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
     lookup_field = "public_id"
 
     filterset_fields = [
-        "HelpRequest_type",
+        "HelpRequests_type",
         "status",
         "priority",
         "assignment_group",
@@ -34,7 +34,7 @@ class HelpRequestViewSet(ModelViewSet):
     ]
 
     def get_queryset(self):
-        qs = HelpRequest.objects.select_related(
+        qs = HelpRequests.objects.select_related(
             "requester",
             "assignee",
             "assignment_group",
@@ -42,25 +42,25 @@ class HelpRequestViewSet(ModelViewSet):
             "service",
         ).all()
 
-        return visible_HelpRequests(self.request.user, qs)
+        return visible_HelpRequestss(self.request.user, qs)
 
     def get_serializer_class(self):
 
         if self.action == "create":
-            return HelpRequestCreateSerializer
+            return HelpRequestsCreateSerializer
 
         if self.action in {"update", "partial_update"}:
             if self.request.user.groups.filter(
                 name__in=["Technician", "Manager", "Administrator"]
             ).exists():
-                return TechnicianHelpRequestUpdateSerializer
+                return TechnicianHelpRequestsUpdateSerializer
 
-            return RequesterHelpRequestUpdateSerializer
+            return RequesterHelpRequestsUpdateSerializer
 
-        return HelpRequestReadSerializer
+        return HelpRequestsReadSerializer
 
     def perform_create(self, serializer):
-        create_HelpRequest_from_serializer(
+        create_HelpRequests_from_serializer(
             request=self.request,
             serializer=serializer,
         )

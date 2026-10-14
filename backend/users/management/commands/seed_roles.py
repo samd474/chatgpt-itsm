@@ -3,9 +3,9 @@ from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand
 
 ROLE_PERMISSIONS = {
-    "Requester": ["add_HelpRequest", "view_own_HelpRequest", "update_own_HelpRequest"], 
-    "Technician": ["view_HelpRequest", "update_HelpRequest", "add_comment", "view_audit_logs"], 
-    "Administrator": ["add_HelpRequest", "change_HelpRequest", "delete_HelpRequest", "view_HelpRequest"],
+    "Requester": ["add_HelpRequests", "view_own_HelpRequests", "update_own_HelpRequests"], 
+    "Technician": ["view_HelpRequests", "update_HelpRequests", "add_comment", "view_audit_logs"], 
+    "Administrator": ["add_HelpRequests", "change_HelpRequests", "delete_HelpRequests", "view_HelpRequests"],
     "Auditor": ["view_auditevent"]
 }
 

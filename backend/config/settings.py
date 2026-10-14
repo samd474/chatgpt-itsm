@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'django_filters',
     'corsheaders',
     'accounts',
-    'helprequests',
+    'HelpRequestss',
     'solutions',
     'rules',
     'reports',
