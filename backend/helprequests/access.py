@@ -6,10 +6,12 @@ def visible_ticket(user, qs):
     if user.groups.filter(name="Auditor").exists():
         return qs
     if user.groups.filter(name__in=["Technician", "Manager"]).exists():
-        return qs.filter(
-            Q(assignment_group_member=user) |
-            Q(assignee=user) |
-            Q(requester=user)
-        ).distinct()
+        visibility_filter = Q(
+            Q(assignment_group_member=user),
+            Q(assignee=user),
+            Q(requester=user),
+            _connector=Q.OR,
+        )
+        return qs.filter(visibility_filter).distinct()
     return qs.filter(requester=user)
     
