@@ -14,3 +14,4 @@ pytest-django
 factory-boy
 requests
 djangorestframework>=3.15,<4.0
+python-dotenv
