@@ -9,7 +9,7 @@ class TicketReadSerializer(serializers.ModelSerializer):
         fields = (
             "public_id",
             "number",
-            "ticket_type",
+            "Ticket_type",
             "title",
             "description",
             "requester",
