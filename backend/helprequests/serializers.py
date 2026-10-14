@@ -2,9 +2,6 @@ from unicodedata import category
 
 from rest_framework import serializers
 
-from .models import Ticket
-
-
 class TicketReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
@@ -47,8 +44,8 @@ class TicketReadSerializer(serializers.ModelSerializer):
             "creation_date",
             "last_updated",
         )
-    class Meta:
-        model = Ticket
+class Meta:
+    model = Ticket
 class RequesterTicketUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model=Ticket
