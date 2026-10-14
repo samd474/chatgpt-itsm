@@ -58,3 +58,4 @@ class TicketCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
         fields = ["request_type", "title", "description", "category", "service", "client_request_id"]
+    
