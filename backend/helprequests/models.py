@@ -29,10 +29,10 @@ class Services(models.Model):
 
 
 def create_help_request(**data):
-    return HelpRequestss.objects.create(**data)
+    return HelpRequests.objects.create(**data)
 
 
-class HelpRequestss(models.Model):
+class HelpRequests(models.Model):
     objects = models.Manager()
 
     class RequestType(models.TextChoices):
@@ -93,7 +93,7 @@ class HelpRequestsComment(models.Model):
         PUBLIC = "public", "PUBLIC"
         PRIVATE = "private", "PRIVATE"
 
-    help_request = models.ForeignKey(HelpRequestss, on_delete=models.CASCADE, related_name="comments")
+    help_request = models.ForeignKey(HelpRequests, on_delete=models.CASCADE, related_name="comments")
     requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     body = models.TextField()
     visibility = models.CharField(max_length=10, choices=Visibility.choices, default=Visibility.PUBLIC)
@@ -101,7 +101,7 @@ class HelpRequestsComment(models.Model):
     last_updated = models.DateTimeField(null=True, blank=True)
 
 class Attachment(models.Model):
-    HelpRequestss = models.ForeignKey(HelpRequestss, on_delete=models.CASCADE, related_name="attachments")
+    HelpRequests = models.ForeignKey(HelpRequests, on_delete=models.CASCADE, related_name="attachments")
     comment = models.ForeignKey(HelpRequestsComment, null=True, blank=True, on_delete=models.CASCADE, related_name="attachment")
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     file_name = models.FileField(upload_to="request_attachments/%Y/%M")

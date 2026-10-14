@@ -10,7 +10,7 @@ from .serializers import (
     RequesterHelpRequestsUpdateSerializer,
 )
 
-from services import create_HelpRequests_from_serializer, visible_HelpRequestss
+from services import create_HelpRequests_from_serializer, visible_HelpRequests
 
 
 class HelpRequestsViewSet(ModelViewSet):
@@ -42,7 +42,7 @@ class HelpRequestsViewSet(ModelViewSet):
             "service",
         ).all()
 
-        return visible_HelpRequestss(self.request.user, qs)
+        return visible_HelpRequests(self.request.user, qs)
 
     def get_serializer_class(self):
 

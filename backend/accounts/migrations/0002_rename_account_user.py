@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
         ('accounts', '0001_initial'),
         ('admin', '0003_logentry_add_action_flag_choices'),
         ('auth', '0012_alter_user_first_name_max_length'),
-        ('HelpRequestss', '0001_initial'),
+        ('HelpRequests', '0001_initial'),
     ]
 
     operations = [

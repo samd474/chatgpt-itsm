@@ -1,10 +1,10 @@
 from rest_framework import serializers
-from .models import HelpRequestss
+from .models import HelpRequests
 
 
 class HelpRequestsReadSerializer(serializers.ModelSerializer):
     class Meta:
-        model = HelpRequestss
+        model = HelpRequests
         fields = (
             "public_id",
             "number",
@@ -48,7 +48,7 @@ class HelpRequestsReadSerializer(serializers.ModelSerializer):
 
 class RequesterHelpRequestsUpdateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = HelpRequestss
+        model = HelpRequests
         fields = ["title", "description", "category", "service", "version"]
         extra_kwargs = {"version": {"write_only": True}}
 
