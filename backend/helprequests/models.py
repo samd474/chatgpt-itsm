@@ -19,13 +19,13 @@ class PermissionGroups(models.Model):
 class Category(models.Model):
     name = models.CharField(max_length=120)
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT)
-    active = models.BooleanField(default=True)
+    active = models.BooleanField()
 
 
 class Services(models.Model):
     name = models.CharField(max_length=160, unique=True)
     managers = models.ForeignKey(SupportGroups, null=True, blank=True, on_delete=models.SET_NULL)
-    active = models.BooleanField(default=True)
+    active = models.BooleanField(default=True)  # type: ignore[arg-type]
 
 
 def create_help_request(**data):
