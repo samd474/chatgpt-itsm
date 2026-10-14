@@ -23,4 +23,9 @@ def logout_view(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me(request):
-    return Response({"username": request.user.username})
+    return Response({
+        "id": request.user.id,
+        "username": request.user.username, 
+        "name": request.user.get_full_name(), 
+        "groups": request.user.groups.value_list("name", flat=True)
+    })
