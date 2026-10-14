@@ -1,15 +1,14 @@
 from rest_framework import serializers
+from HelpRequests.models import HelpRequests
 
-from .models import Ticket
 
-
-class TicketReadSerializer(serializers.ModelSerializer):
+class HelpRequestReadSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Ticket
+        model = HelpRequests
         fields = (
             "public_id",
             "number",
-            "Ticket_type",
+            "Request_type",
             "title",
             "description",
             "requester",
@@ -47,15 +46,15 @@ class TicketReadSerializer(serializers.ModelSerializer):
         )
 
 
-class RequesterTicketUpdateSerializer(serializers.ModelSerializer):
+class RequesterHelpRequestUpdateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Ticket
+        model = HelpRequest
         fields = ["title", "description", "category", "service", "version"]
         extra_kwargs = {"version": {"write_only": True}}
 
 
-class TicketCreateSerializer(serializers.ModelSerializer):
+class HelpRequestCreateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Ticket
+        model = HelpRequest
         fields = ["request_type", "title", "description", "category", "service", "client_request_id"]
     
