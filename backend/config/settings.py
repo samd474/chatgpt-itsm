@@ -172,7 +172,7 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_BEAT_SCHEDULE = {
     "check_sla_thresholds_every_minute": {
-        "tasks": "slas.tasks.check_sla_thresholds", 
+        "tasks": "rules.tasks.check_sla_thresholds", 
         "schedule": 60.0,
     },
 }
