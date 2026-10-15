@@ -16,23 +16,29 @@ from dotenv import load_dotenv
 
 _ = load_dotenv()
 
+
+def env(name, default=""):
+    # Strip stray whitespace from .env values (e.g. "db " breaks DNS lookups).
+    return os.getenv(name, default).strip()
+
+
+def env_list(name, default=""):
+    return [x.strip() for x in env(name, default).split(",") if x.strip()]
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+SECRET_KEY = env("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
+DEBUG = env("DJANGO_DEBUG", "0") == "1"
 
-ALLOWED_HOSTS = [
-    x.strip()
-    for x in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-    if x.strip()
-]
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+if DEBUG:
+    # The Vite dev server proxies /api to http://backend:8000 inside Compose.
+    ALLOWED_HOSTS += ["backend"]
 
 # Application definition
 INSTALLED_APPS = [
@@ -47,6 +53,8 @@ INSTALLED_APPS = [
     "corsheaders",
     "accounts",
     "helprequests",
+    "catalog",
+    "slas",
     "solutions",
     "rules",
     "reports",
@@ -55,6 +63,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "config.middleware.RequestIDMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -86,11 +97,11 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB", "postgres"),
-        "USER": os.getenv("POSTGRES_USER", "postgres"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "postgres"),
-        "HOST": os.getenv("POSTGRES_HOST", "db"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        "NAME": env("POSTGRES_DB", "postgres"),
+        "USER": env("POSTGRES_USER", "postgres"),
+        "PASSWORD": env("POSTGRES_PASSWORD", "postgres"),
+        "HOST": env("POSTGRES_HOST", "db"),
+        "PORT": env("POSTGRES_PORT", "5432"),
         "CONN_MAX_AGE": 60,
     }
 }
@@ -122,6 +133,18 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Uploaded attachments. These are never served directly; downloads go through
+# an authorized API endpoint.
+MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL = "/media/"
+ATTACHMENT_MAX_BYTES = int(os.getenv("ATTACHMENT_MAX_BYTES", str(10 * 1024 * 1024)))
+ATTACHMENT_BLOCKED_EXTENSIONS = {
+    ".exe", ".dll", ".bat", ".cmd", ".com", ".msi", ".ps1", ".vbs", ".js",
+    ".jar", ".scr", ".sh", ".hta", ".cpl", ".lnk", ".reg",
+}
+DATA_UPLOAD_MAX_MEMORY_SIZE = ATTACHMENT_MAX_BYTES
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -140,27 +163,73 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,
+    "DEFAULT_THROTTLE_RATES": {
+        "login": env("LOGIN_THROTTLE_RATE", "10/min"),
+    },
 }
 
 CORS_ALLOWED_ORIGINS = ["http://localhost:5173"] if DEBUG else []
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = [
-    x.strip()
-    for x in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
-    if x.strip()
-]
+CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = env("REDIS_URL", "redis://localhost:6379/0")
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_BEAT_SCHEDULE = {
+    "check-sla-thresholds-every-minute": {
+        "task": "slas.tasks.check_sla_thresholds",
+        "schedule": 60.0,
+    },
+}
 
-# No SLA task app exists in this repo yet, so keep the scheduler empty
-# until a real task module is added.
-CELERY_BEAT_SCHEDULE = {}
+# Login throttling needs a cache shared by every web process.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+    }
+}
+
+EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "itsm@example.local")
+EMAIL_HOST = env("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(env("EMAIL_PORT", "25"))
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env("EMAIL_USE_TLS", "0") == "1"
+FRONTEND_URL = env("FRONTEND_URL", "http://localhost:5173")
 
 AUTH_USER_MODEL = "accounts.User"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {"()": "config.logging.JSONFormatter"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "json"},
+    },
+    "root": {"handlers": ["console"], "level": env("LOG_LEVEL", "INFO")},
+    "loggers": {
+        # runserver already prints its own access line.
+        "django.server": {"level": "WARNING"},
+    },
+}
+
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = env("DJANGO_SECURE_SSL_REDIRECT", "1") == "1"
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # Only raise HSTS once HTTPS works for the real hostname.
+    SECURE_HSTS_SECONDS = int(env("DJANGO_HSTS_SECONDS", "0"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_HSTS_SECONDS > 0
+    SECURE_HSTS_PRELOAD = SECURE_HSTS_SECONDS > 0
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = "DENY"

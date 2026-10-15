@@ -2,10 +2,26 @@ from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand
 
 ROLE_PERMISSIONS = {
-    "Requester": ["add_helprequests", "view_helprequests", "change_helprequests", "add_helprequestscomment"],
-    "Technician": ["view_helprequests", "change_helprequests", "add_helprequestscomment", "view_auditevent"],
-    "Manager": ["view_helprequests", "change_helprequests", "add_helprequestscomment", "view_auditevent"],
-    "Administrator": ["add_helprequests", "change_helprequests", "delete_helprequests", "view_helprequests"],
+    "Requester": [
+        "add_helprequests", "view_helprequests", "add_helprequestscomment",
+        "add_attachment", "view_catalogitem",
+    ],
+    "Technician": [
+        "view_helprequests", "change_helprequests", "add_helprequestscomment",
+        "add_attachment", "view_catalogitem",
+    ],
+    "Manager": [
+        "view_helprequests", "change_helprequests", "add_helprequestscomment",
+        "add_attachment", "view_catalogitem", "view_auditevent", "export_helprequests",
+        "change_approval",
+    ],
+    "Administrator": [
+        "add_helprequests", "change_helprequests", "delete_helprequests", "view_helprequests",
+        "add_helprequestscomment", "add_attachment", "view_auditevent", "export_helprequests",
+        "add_catalogitem", "change_catalogitem", "view_catalogitem",
+        "add_slapolicy", "change_slapolicy", "view_slapolicy",
+        "add_importjob", "change_importjob", "view_importjob", "change_approval",
+    ],
     "Auditor": ["view_helprequests", "view_auditevent"],
 }
 

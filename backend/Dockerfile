@@ -4,8 +4,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+# libmagic1 lets python-magic inspect upload signatures instead of trusting the browser's MIME type.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libpq-dev curl \
+    build-essential libpq-dev libmagic1 curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt

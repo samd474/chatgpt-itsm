@@ -10,4 +10,5 @@ coverage/
 .pytest_cache/
 media/
 *.log
-.DS_Store
+.DS_Storestaticfiles/
+celerybeat-schedule*

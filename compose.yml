@@ -48,7 +48,8 @@ services:
   beat:
     build: ./backend
     env_file: .env
-    command: celery -A config beat -l INFO
+    # Keep the beat state file out of the source tree.
+    command: celery -A config beat -l INFO --schedule /tmp/celerybeat-schedule
     volumes:
       - ./backend:/app
     depends_on:
@@ -58,7 +59,8 @@ services:
   frontend:
     build: ./frontend
     environment:
-      VITE_API_BASE_URL: http://localhost:8000/api
+      # The browser calls /api on the Vite origin; Vite proxies it to Django.
+      VITE_DEV_PROXY_TARGET: http://backend:8000
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -66,8 +68,8 @@ services:
       - "5173:5173"
     depends_on:
       - backend
-  
+
 volumes:
-  postgres_data: 
-  redis_data: 
-  media_data: 
+  postgres_data:
+  redis_data:
+  media_data:
