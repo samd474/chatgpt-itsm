@@ -47,9 +47,9 @@ export function AssetsPage() {
               { key: "n", label: "Name", className: "title-cell", render: (a) => a.name },
               { key: "ty", label: "Type", render: (a) => a.asset_type_name },
               { key: "s", label: "Status", render: (a) => <Pill value={a.status} /> },
-              { key: "u", label: "Assigned to", render: (a) => a.assigned_to_name ?? <span className="subtle">—</span> },
-              { key: "l", label: "Location", render: (a) => a.location_name ?? <span className="subtle">—</span> },
-              { key: "w", label: "Warranty", render: (a) => <span className="subtle">{formatDay(a.warranty_expires)}</span> },
+              { key: "u", label: "Assigned to", className: "hide-sm", render: (a) => a.assigned_to_name ?? <span className="subtle">—</span> },
+              { key: "l", label: "Location", className: "hide-sm", render: (a) => a.location_name ?? <span className="subtle">—</span> },
+              { key: "w", label: "Warranty", className: "hide-sm", render: (a) => <span className="subtle">{formatDay(a.warranty_expires)}</span> },
             ]} />
           {(query.data.next || query.data.previous) && <Pager count={query.data.count} page={page} hasNext={!!query.data.next} hasPrev={!!query.data.previous} onPage={setPage} noun="assets" />}
         </Card>

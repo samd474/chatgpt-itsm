@@ -45,10 +45,10 @@ export function ChangesPage() {
             columns={[
               { key: "n", label: "Number", className: "num", render: (c) => c.number },
               { key: "t", label: "Title", className: "title-cell", render: (c) => c.title },
-              { key: "ty", label: "Type", render: (c) => <Pill value={c.change_type} /> },
+              { key: "ty", label: "Type", className: "hide-sm", render: (c) => <Pill value={c.change_type} /> },
               { key: "r", label: "Risk", render: (c) => <Pill value={c.risk} /> },
               { key: "s", label: "Status", render: (c) => <ChangeStatusBadge status={c.status} /> },
-              { key: "w", label: "Window", render: (c) => <span className="subtle">{c.planned_start ? formatDate(c.planned_start) : "Not scheduled"}</span> },
+              { key: "w", label: "Window", className: "hide-sm", render: (c) => <span className="subtle">{c.planned_start ? formatDate(c.planned_start) : "Not scheduled"}</span> },
             ]} />
           {(query.data.next || query.data.previous) && <Pager count={query.data.count} page={page} hasNext={!!query.data.next} hasPrev={!!query.data.previous} onPage={setPage} noun="changes" />}
         </Card>

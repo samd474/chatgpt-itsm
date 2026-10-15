@@ -86,12 +86,12 @@ export function QueuePage() {
               { key: "p", label: "", render: (t) => <PriorityBadge priority={t.priority} /> },
               { key: "n", label: "Number", className: "num", render: (t) => t.request_number },
               { key: "s", label: "Subject", className: "title-cell", render: (t) => t.subject },
-              { key: "st", label: "Status", render: (t) => <StatusBadge status={t.status} /> },
-              { key: "a", label: "Assignee", render: (t) => t.technician_name
+              { key: "st", label: "Status", className: "hide-sm", render: (t) => <StatusBadge status={t.status} /> },
+              { key: "a", label: "Assignee", className: "hide-sm", render: (t) => t.technician_name
                 ? <span className="row"><Avatar name={t.technician_name} />{t.technician_name}</span>
                 : <span className="subtle">{t.assignment_group_name ?? "Unassigned"}</span> },
-              { key: "sla", label: "SLA", render: (t) => <SlaBadge sla={t.sla} /> },
-              { key: "u", label: "Updated", render: (t) => <span className="subtle">{relativeTime(t.updated_at)}</span> },
+              { key: "sla", label: "SLA", className: "hide-sm", render: (t) => <SlaBadge sla={t.sla} compact /> },
+              { key: "u", label: "Updated", className: "hide-sm", render: (t) => <span className="subtle">{relativeTime(t.updated_at)}</span> },
             ]}
           />
           {(tickets.data.next || tickets.data.previous) && (

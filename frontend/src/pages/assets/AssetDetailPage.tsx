@@ -116,6 +116,7 @@ export function AssetDetailPage() {
               <div className="list">{contracts.data?.map((c) => <div className="list-item" key={c.id}><Link to={`/contracts/${c.id}`}>{c.number}</Link><span className="muted">{c.vendor_name}</span><span className="spacer" /><span className="subtle">ends {formatDay(c.end_date)}</span></div>)}</div>
             </Card>
             <Card title="History">
+              {history.data?.length === 0 && <p className="subtle">No changes recorded yet.</p>}
               <div className="list">
                 {history.data?.slice(0, 12).map((e) => <div className="list-item" key={e.id}><code>{e.event_type.replace("asset.", "")}</code><span className="muted">{e.actor_name ?? "System"}</span><span className="spacer" /><span className="subtle">{relativeTime(e.created_at)}</span></div>)}
               </div>

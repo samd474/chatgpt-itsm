@@ -25,6 +25,8 @@ export default defineConfig(({ mode }) => {
       host: "0.0.0.0",
       port: 5173,
       strictPort: true,
+      // File-change events don't cross Windows/WSL bind mounts into Docker, so poll there.
+      watch: env.VITE_USE_POLLING === "1" ? { usePolling: true, interval: 300 } : undefined,
       proxy: {
         "/api": { target, changeOrigin: false },
         "/admin": { target, changeOrigin: false },

@@ -117,7 +117,7 @@ export function DataTable<T>({ rows, columns, rowKey, onRowClick, empty }: {
   return (
     <div className="table-wrap">
       <table className="table">
-        <thead><tr>{columns.map((c) => <th key={c.key}>{c.label}</th>)}</tr></thead>
+        <thead><tr>{columns.map((c) => <th key={c.key} className={c.className?.includes("hide-sm") ? "hide-sm" : undefined}>{c.label}</th>)}</tr></thead>
         <tbody>
           {rows.map((row) => (
             <tr key={rowKey(row)} className={onRowClick ? "clickable" : undefined} onClick={onRowClick ? () => onRowClick(row) : undefined}>

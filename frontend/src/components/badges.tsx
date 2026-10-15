@@ -1,5 +1,5 @@
 import type { ChangeStatus, SlaSummary, TicketStatus } from "../types";
-import { formatDate, humanize, statusLabel } from "../utils/format";
+import { formatDate, humanize, relativeTime, statusLabel } from "../utils/format";
 import { Badge, type Tone } from "./ui";
 
 const TICKET_TONES: Record<TicketStatus, Tone> = {
@@ -15,12 +15,12 @@ export function PriorityBadge({ priority }: { priority: number }) {
   return <span className={`priority p${priority}`} title={`Priority ${priority}`}><span className="bars"><i /><i /><i /></span>P{priority}</span>;
 }
 
-export function SlaBadge({ sla }: { sla: SlaSummary | null }) {
+export function SlaBadge({ sla, compact }: { sla: SlaSummary | null; compact?: boolean }) {
   if (!sla) return <span className="subtle">—</span>;
   if (sla.response_breached || sla.resolution_breached) return <Badge tone="red" dot>Breached</Badge>;
   if (sla.paused) return <Badge tone="gray" dot>Paused</Badge>;
   if (sla.warning) return <Badge tone="amber" dot>At risk</Badge>;
-  return <span className="subtle">Due {formatDate(sla.resolution_due_at)}</span>;
+  return <span className="subtle" title={formatDate(sla.resolution_due_at)}>Due {compact ? relativeTime(sla.resolution_due_at) : formatDate(sla.resolution_due_at)}</span>;
 }
 
 const CHANGE_TONES: Record<ChangeStatus, Tone> = {

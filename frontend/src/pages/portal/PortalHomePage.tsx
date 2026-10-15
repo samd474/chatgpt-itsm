@@ -46,8 +46,8 @@ export function PortalHomePage() {
               { key: "n", label: "Number", className: "num", render: (t) => t.request_number },
               { key: "s", label: "Subject", className: "title-cell", render: (t) => t.subject },
               { key: "st", label: "Status", render: (t) => <StatusBadge status={t.status} /> },
-              { key: "p", label: "Priority", render: (t) => <PriorityBadge priority={t.priority} /> },
-              { key: "u", label: "Updated", render: (t) => <span className="subtle">{relativeTime(t.updated_at)}</span> },
+              { key: "p", label: "Priority", className: "hide-sm", render: (t) => <PriorityBadge priority={t.priority} /> },
+              { key: "u", label: "Updated", className: "hide-sm", render: (t) => <span className="subtle">{relativeTime(t.updated_at)}</span> },
             ]}
           />
           {(query.data.next || query.data.previous) && (

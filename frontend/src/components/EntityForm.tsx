@@ -1,3 +1,4 @@
+import { MultiSelect } from "./MultiSelect";
 import { Field } from "./ui";
 import { useLookup, type FieldDef, type Values } from "./form";
 
@@ -6,13 +7,7 @@ function SelectField({ def, value, onChange, disabled, multiple }: { def: FieldD
   const options = def.options ?? lookup.data ?? [];
   const numeric = options.length > 0 && typeof options[0].value === "number";
   if (multiple) {
-    const selected = (value as (string | number)[]) ?? [];
-    return (
-      <select className="select" multiple disabled={disabled} value={selected.map(String)}
-        onChange={(e) => onChange(Array.from(e.target.selectedOptions).map((o) => (numeric ? Number(o.value) : o.value)))}>
-        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    );
+    return <MultiSelect options={options} value={(value as (string | number)[]) ?? []} onChange={onChange} disabled={disabled} />;
   }
   return (
     <select className="select" disabled={disabled} value={String(value ?? "")}

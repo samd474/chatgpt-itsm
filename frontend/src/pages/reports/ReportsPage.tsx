@@ -5,7 +5,7 @@ import { apiErrorMessage } from "../../api/client";
 import { exportDownloadUrl, getExports, requestExport } from "../../api/tickets";
 import { Pill } from "../../components/badges";
 import { Card, DataTable, ErrorState, LoadingState, Notice, PageHeader } from "../../components/ui";
-import { relativeTime } from "../../utils/format";
+import { humanize, relativeTime } from "../../utils/format";
 
 const AGE_LABELS: Record<string, string> = { under_1_day: "< 1 day", "1_to_3_days": "1–3 days", "3_to_7_days": "3–7 days", over_7_days: "> 7 days" };
 
@@ -16,7 +16,7 @@ function Breakdown({ title, data, labels }: { title: string; data: Record<string
       {Object.keys(data).length === 0 && <p className="subtle">No data yet.</p>}
       {Object.entries(data).map(([key, value]) => (
         <div className="bar-row" key={key}>
-          <span className="muted">{labels?.[key] ?? key.replaceAll("_", " ")}</span>
+          <span className="muted">{labels?.[key] ?? humanize(key)}</span>
           <div className="bar"><i style={{ width: `${(value / max) * 100}%` }} /></div>
           <strong style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{value}</strong>
         </div>
