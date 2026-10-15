@@ -1,99 +1,104 @@
-import { useQuery } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
-import { exportUrl, getSupportGroups, getTickets, type TicketListParams } from "../../api/tickets";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Download } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { getQueueTickets, getQueues, getSupportGroups, getTickets, requestExport, type TicketListParams } from "../../api/tickets";
 import { apiErrorMessage } from "../../api/client";
 import { useAuth } from "../../auth/context";
 import { hasRole } from "../../auth/roles";
-import { ErrorState, LoadingState } from "../../components/Feedback";
-import { SlaBadge } from "../../components/SlaBadge";
-import { PriorityBadge, StatusBadge } from "../../components/StatusBadge";
-import { formatDate } from "../../utils/format";
+import { PriorityBadge, SlaBadge, StatusBadge } from "../../components/badges";
+import { Avatar, Card, DataTable, EmptyState, ErrorState, LoadingState, Notice, PageHeader, Pager, SearchInput, Tabs } from "../../components/ui";
+import type { Ticket } from "../../types";
+import { relativeTime } from "../../utils/format";
 
 export function QueuePage() {
   const { user } = useAuth();
-  const [filters, setFilters] = useState<TicketListParams>({ ordering: "priority" });
-  const [draftSearch, setDraftSearch] = useState("");
-  const query = useQuery({ queryKey: ["tickets", "tech", filters], queryFn: () => getTickets(filters) });
-  const groups = useQuery({ queryKey: ["lookup", "groups"], queryFn: getSupportGroups });
-
-  function update(changes: Partial<TicketListParams>) {
-    setFilters((old) => ({ ...old, page: 1, ...changes }));
-  }
-
-  function search(event: FormEvent) {
-    event.preventDefault();
-    update({ search: draftSearch || undefined });
-  }
+  const navigate = useNavigate();
+  const [view, setView] = useState<string>("all");
+  const [filters, setFilters] = useState<TicketListParams>({ ordering: "priority", open: true });
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const queues = useQuery({ queryKey: ["queues"], queryFn: getQueues });
+  const groups = useQuery({ queryKey: ["lookup", "groups-simple"], queryFn: getSupportGroups });
+  const queueId = view === "all" ? null : Number(view);
+  const tickets = useQuery({
+    queryKey: ["tickets", "tech", view, filters, search, page],
+    queryFn: () => queueId
+      ? getQueueTickets(queueId, { page, search: search || undefined })
+      : getTickets({ ...filters, page, search: search || undefined }),
+  });
+  const exporter = useMutation({ mutationFn: () => requestExport({ ...filters, search: search || undefined }) });
+  const update = (changes: Partial<TicketListParams>) => { setFilters((f) => ({ ...f, ...changes })); setPage(1); };
 
   return (
-    <section>
-      <div className="page-heading">
-        <div><h1>Technician queue</h1><p>Filtering and paging run on the server.</p></div>
-        {hasRole(user, "Manager", "Administrator") && (
-          <a className="button button--secondary" href={exportUrl({ ...filters, page: undefined })}>Export CSV</a>
-        )}
-      </div>
-      <div className="filter-bar">
-        <form onSubmit={search} className="inline-form">
-          <input value={draftSearch} onChange={(e) => setDraftSearch(e.target.value)} placeholder="Search number, subject, description" />
-          <button className="button button--secondary">Search</button>
-        </form>
-        <select value={filters.status ?? ""} onChange={(e) => update({ status: e.target.value || undefined })} aria-label="Status filter">
-          <option value="">All statuses</option>
-          <option value="new">New</option>
-          <option value="assigned">Assigned</option>
-          <option value="in_progress">In progress</option>
-          <option value="pending_user_response">Pending user response</option>
-          <option value="resolved">Resolved</option>
-          <option value="closed">Closed</option>
-        </select>
-        <select value={filters.priority ?? ""} onChange={(e) => update({ priority: e.target.value || undefined })} aria-label="Priority filter">
-          <option value="">All priorities</option>
-          {[1, 2, 3, 4].map((p) => <option key={p} value={p}>P{p}</option>)}
-        </select>
-        <select value={filters.assignment_group ?? ""} onChange={(e) => update({ assignment_group: e.target.value || undefined })} aria-label="Group filter">
-          <option value="">All groups</option>
-          {groups.data?.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-        </select>
-        <select value={filters.technician ?? ""} onChange={(e) => update({ technician: e.target.value || undefined })} aria-label="Assignee filter">
-          <option value="">Anyone</option>
-          {user && <option value={user.id}>Assigned to me</option>}
-        </select>
-        <select value={filters.ordering ?? ""} onChange={(e) => update({ ordering: e.target.value || undefined })} aria-label="Sort order">
-          <option value="priority">Highest priority</option>
-          <option value="-updated_at">Recently updated</option>
-          <option value="created_at">Oldest first</option>
-        </select>
+    <>
+      <PageHeader title="Ticket queue" description="Tickets for you and your teams."
+        actions={hasRole(user, "Manager", "Administrator") && view === "all" && (
+          <button className="btn btn-secondary" disabled={exporter.isPending} onClick={() => exporter.mutate()}><Download />Export CSV</button>
+        )} />
+      {exporter.data?.queued && <div style={{ marginBottom: 12 }}><Notice tone="success">That's {exporter.data.rows} rows, so the export is being prepared in the background. Download it from Reports → Exports.</Notice></div>}
+      {exporter.isError && <div style={{ marginBottom: 12 }}><Notice tone="error">{apiErrorMessage(exporter.error)}</Notice></div>}
+
+      <Tabs value={view} onChange={(v) => { setView(v); setPage(1); }} tabs={[
+        { value: "all", label: "All tickets" },
+        ...(queues.data ?? []).map((q) => ({ value: String(q.id), label: q.name })),
+      ]} />
+
+      <div className="toolbar">
+        <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search number, subject, description" />
+        {view === "all" && <>
+          <select className="select" value={filters.open ? "open" : filters.status ?? ""} aria-label="Status"
+            onChange={(e) => update(e.target.value === "open" ? { open: true, status: undefined } : { open: undefined, status: e.target.value || undefined })}>
+            <option value="open">Open</option>
+            <option value="">Any status</option>
+            <option value="new">New</option>
+            <option value="assigned">Assigned</option>
+            <option value="in_progress">In progress</option>
+            <option value="pending_user_response">Pending user</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+          </select>
+          <select className="select" value={filters.priority ?? ""} onChange={(e) => update({ priority: e.target.value || undefined })} aria-label="Priority">
+            <option value="">Any priority</option>{[1, 2, 3, 4].map((p) => <option key={p} value={p}>P{p}</option>)}
+          </select>
+          <select className="select" value={filters.assignment_group ?? ""} onChange={(e) => update({ assignment_group: e.target.value || undefined })} aria-label="Group">
+            <option value="">Any group</option>{groups.data?.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+          <select className="select" value={filters.technician ?? ""} onChange={(e) => update({ technician: e.target.value || undefined })} aria-label="Assignee">
+            <option value="">Anyone</option>{user && <option value={user.id}>Assigned to me</option>}
+          </select>
+          <select className="select" value={filters.ordering ?? ""} onChange={(e) => update({ ordering: e.target.value })} aria-label="Sort">
+            <option value="priority">Priority</option><option value="-updated_at">Recently updated</option><option value="created_at">Oldest</option>
+          </select>
+        </>}
       </div>
 
-      {query.isPending && <LoadingState />}
-      {query.isError && <ErrorState message={apiErrorMessage(query.error)} />}
-      {query.data && <>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>Number</th><th>Subject</th><th>Status</th><th>Priority</th><th>Assignee</th><th>SLA</th><th>Updated</th></tr></thead>
-            <tbody>
-              {query.data.results.map((ticket) => (
-                <tr key={ticket.public_id}>
-                  <td><Link to={`/tech/tickets/${ticket.public_id}`}>{ticket.request_number}</Link></td>
-                  <td>{ticket.subject}</td>
-                  <td><StatusBadge status={ticket.status} /></td>
-                  <td><PriorityBadge priority={ticket.priority} /></td>
-                  <td>{ticket.technician_name ?? ticket.assignment_group_name ?? "Unassigned"}</td>
-                  <td><SlaBadge sla={ticket.sla} /></td>
-                  <td>{formatDate(ticket.updated_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="pagination">
-          <button className="button button--secondary" disabled={!query.data.previous} onClick={() => setFilters((old) => ({ ...old, page: Math.max(1, (old.page ?? 1) - 1) }))}>Previous</button>
-          <span>{query.data.count} tickets</span>
-          <button className="button button--secondary" disabled={!query.data.next} onClick={() => setFilters((old) => ({ ...old, page: (old.page ?? 1) + 1 }))}>Next</button>
-        </div>
-      </>}
-    </section>
+      {tickets.isPending && <LoadingState />}
+      {tickets.isError && <ErrorState message={apiErrorMessage(tickets.error)} />}
+      {tickets.data && (
+        <Card flush>
+          <DataTable<Ticket>
+            rows={tickets.data.results}
+            rowKey={(t) => t.public_id}
+            onRowClick={(t) => navigate(`/tech/tickets/${t.public_id}`)}
+            empty={<EmptyState title="Queue is clear" message="No tickets match these filters." />}
+            columns={[
+              { key: "p", label: "", render: (t) => <PriorityBadge priority={t.priority} /> },
+              { key: "n", label: "Number", className: "num", render: (t) => t.request_number },
+              { key: "s", label: "Subject", className: "title-cell", render: (t) => t.subject },
+              { key: "st", label: "Status", render: (t) => <StatusBadge status={t.status} /> },
+              { key: "a", label: "Assignee", render: (t) => t.technician_name
+                ? <span className="row"><Avatar name={t.technician_name} />{t.technician_name}</span>
+                : <span className="subtle">{t.assignment_group_name ?? "Unassigned"}</span> },
+              { key: "sla", label: "SLA", render: (t) => <SlaBadge sla={t.sla} /> },
+              { key: "u", label: "Updated", render: (t) => <span className="subtle">{relativeTime(t.updated_at)}</span> },
+            ]}
+          />
+          {(tickets.data.next || tickets.data.previous) && (
+            <Pager count={tickets.data.count} page={page} hasNext={!!tickets.data.next} hasPrev={!!tickets.data.previous} onPage={setPage} noun="tickets" />
+          )}
+        </Card>
+      )}
+    </>
   );
 }

@@ -1,5 +1,19 @@
 import { api } from "./client";
-import type { Approval, Attachment, Lookup, Paginated, Ticket, TicketComment, TicketStatus, UserLookup } from "../types";
+import type {
+  Approval,
+  Attachment,
+  CustomFieldDef,
+  ExportJob,
+  FulfillmentTask,
+  Lookup,
+  Paginated,
+  Queue,
+  Ticket,
+  TicketComment,
+  TicketStatus,
+  TicketTemplate,
+  UserLookup,
+} from "../types";
 
 export type TicketListParams = {
   page?: number;
@@ -10,6 +24,7 @@ export type TicketListParams = {
   technician?: string;
   category?: string;
   ordering?: string;
+  open?: boolean;
 };
 
 export type CreateTicketInput = {
@@ -20,10 +35,12 @@ export type CreateTicketInput = {
   urgency: number;
   category?: number | null;
   service?: number | null;
+  template?: number | null;
+  custom_fields?: Record<string, unknown>;
 };
 
 export type TicketUpdateInput = Partial<
-  Pick<Ticket, "subject" | "description" | "technician" | "assignment_group" | "category" | "service" | "impact" | "urgency">
+  Pick<Ticket, "subject" | "description" | "technician" | "assignment_group" | "category" | "service" | "impact" | "urgency" | "custom_fields">
 >;
 
 const base = "/help-requests";
@@ -90,12 +107,6 @@ export function attachmentDownloadUrl(publicId: string, attachmentId: number): s
   return `/api${base}/${publicId}/attachments/${attachmentId}/download/`;
 }
 
-export function exportUrl(params: TicketListParams): string {
-  const query = new URLSearchParams(
-    Object.entries(params).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)]),
-  );
-  return `/api${base}/export/?${query}`;
-}
 
 export async function getTicketApprovals(publicId: string): Promise<Approval[]> {
   const response = await api.get<Approval[]>(`${base}/${publicId}/approvals/`);
@@ -127,4 +138,56 @@ export async function getServices(): Promise<Lookup[]> {
 export async function getTechnicians(group?: number | null): Promise<UserLookup[]> {
   const params = group ? { support_groups: group } : {};
   return (await api.get<UserLookup[]>("/technicians/", { params })).data;
+}
+
+export async function getTicketTasks(publicId: string): Promise<FulfillmentTask[]> {
+  return (await api.get<FulfillmentTask[]>(`${base}/${publicId}/tasks/`)).data;
+}
+
+export async function addTicketTask(publicId: string, input: { title: string; description?: string; assignee?: number | null }): Promise<FulfillmentTask> {
+  return (await api.post<FulfillmentTask>(`${base}/${publicId}/tasks/`, input)).data;
+}
+
+export async function updateTask(id: number, input: Partial<Pick<FulfillmentTask, "status" | "assignee" | "title">>): Promise<FulfillmentTask> {
+  return (await api.patch<FulfillmentTask>(`/tasks/${id}/`, input)).data;
+}
+
+export async function getTemplates(): Promise<TicketTemplate[]> {
+  return (await api.get<TicketTemplate[]>("/ticket-templates/")).data;
+}
+
+export async function getQueues(): Promise<Queue[]> {
+  return (await api.get<Queue[]>("/queues/")).data;
+}
+
+export async function getQueueTickets(id: number, params: { page?: number; search?: string }): Promise<Paginated<Ticket>> {
+  return (await api.get<Paginated<Ticket>>(`/queues/${id}/tickets/`, { params })).data;
+}
+
+export async function getCustomFields(entity: string): Promise<CustomFieldDef[]> {
+  return (await api.get<CustomFieldDef[]>("/custom-fields/", { params: { entity, active: true } })).data;
+}
+
+/** Small exports download immediately; large ones are queued (202) and appear under Reports > Exports. */
+export async function requestExport(params: TicketListParams): Promise<{ queued: boolean; rows?: number }> {
+  const response = await api.get(`${base}/export/`, { params: { ...params, page: undefined }, responseType: "blob" });
+  if (response.status === 202) {
+    const body = JSON.parse(await (response.data as Blob).text()) as { row_count: number };
+    return { queued: true, rows: body.row_count };
+  }
+  const url = URL.createObjectURL(response.data as Blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "help-requests.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+  return { queued: false };
+}
+
+export async function getExports(): Promise<ExportJob[]> {
+  return (await api.get<ExportJob[]>("/exports/")).data;
+}
+
+export function exportDownloadUrl(id: string) {
+  return `/api/exports/${id}/download/`;
 }

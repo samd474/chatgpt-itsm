@@ -1,0 +1,17 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | ITSM administration{% endblock %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'itsm/admin-theme.css' %}">{% endblock %}
+
+{% block branding %}
+<div id="site-name"><a href="{% url 'admin:index' %}">ITSM <span class="itsm-admin-tag">administration</span></a></div>
+{% endblock %}
+
+{% block userlinks %}
+<a href="/">Back to ITSM</a> /
+{{ block.super }}
+{% endblock %}
+
+{% block nav-global %}{% endblock %}

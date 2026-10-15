@@ -6,7 +6,10 @@ from helprequests.permissions import NotReadOnlyAuditor
 from helprequests.serializers import HelpRequestsReadSerializer
 
 from .models import CatalogItem
-from .serializers import CatalogItemSerializer, CatalogSubmitSerializer
+from core.permissions import IsAdministrator
+from core.viewsets import AuditedModelViewSet
+
+from .serializers import CatalogItemAdminSerializer, CatalogItemSerializer, CatalogSubmitSerializer
 from .services import submit_catalog_item
 
 
@@ -25,3 +28,11 @@ class CatalogItemViewSet(viewsets.ReadOnlyModelViewSet):
             item, requester=request.user, answers=serializer.validated_data["request_payload"], request=request,
         )
         return Response(HelpRequestsReadSerializer(help_request).data, status=status.HTTP_201_CREATED)
+
+
+class CatalogItemAdminViewSet(AuditedModelViewSet):
+    serializer_class = CatalogItemAdminSerializer
+    permission_classes = [IsAdministrator]
+    pagination_class = None
+    queryset = CatalogItem.objects.prefetch_related("approvers")
+    audit_prefix = "config.catalog_item"

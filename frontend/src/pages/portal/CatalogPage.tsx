@@ -1,24 +1,31 @@
 import { useQuery } from "@tanstack/react-query";
+import { LayoutGrid } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getCatalogItems } from "../../api/catalog";
 import { apiErrorMessage } from "../../api/client";
-import { EmptyState, ErrorState, LoadingState } from "../../components/Feedback";
+import { Badge, EmptyState, ErrorState, LoadingState, PageHeader, SearchInput } from "../../components/ui";
 
 export function CatalogPage() {
+  const [search, setSearch] = useState("");
   const query = useQuery({ queryKey: ["catalog-items"], queryFn: getCatalogItems });
+  const items = (query.data ?? []).filter((i) => i.active && `${i.name} ${i.short_description}`.toLowerCase().includes(search.toLowerCase()));
   return (
-    <section>
-      <div className="page-heading"><div><h1>Service catalog</h1><p>Request standard services using guided forms.</p></div></div>
+    <>
+      <PageHeader title="Service catalog" description="Request standard services and equipment." />
+      <div className="toolbar"><SearchInput value={search} onChange={setSearch} placeholder="Search the catalog" /></div>
       {query.isPending && <LoadingState />}
       {query.isError && <ErrorState message={apiErrorMessage(query.error)} />}
-      {query.data?.length === 0 && <EmptyState message="No catalog items are available yet." />}
-      <div className="card-grid">
-        {query.data?.filter((item) => item.active).map((item) => (
-          <Link className="catalog-card" key={item.slug} to={`/portal/catalog/${item.slug}`}>
-            <h2>{item.name}</h2><p>{item.short_description}</p>{item.requires_approval && <span className="badge">Approval required</span>}
+      {query.data && items.length === 0 && <EmptyState title="No matching services" />}
+      <div className="tiles">
+        {items.map((item) => (
+          <Link className="tile" key={item.slug} to={`/portal/catalog/${item.slug}`}>
+            <div className="row"><span className="tile-icon"><LayoutGrid /></span><span className="spacer" />{item.requires_approval && <Badge tone="amber">Needs approval</Badge>}</div>
+            <h3>{item.name}</h3>
+            <p>{item.short_description}</p>
           </Link>
         ))}
       </div>
-    </section>
+    </>
   );
 }

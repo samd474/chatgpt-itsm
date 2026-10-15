@@ -93,3 +93,17 @@ def validate_answers(schema, answers, *, reject_unknown=True):
                 continue
         cleaned[key] = value
     return cleaned, errors
+
+
+def validate_task_templates(templates):
+    if not isinstance(templates, list):
+        return ["fulfillment_tasks must be a list"]
+    errors = []
+    for index, task in enumerate(templates):
+        if not isinstance(task, dict) or not str(task.get("title", "")).strip():
+            errors.append(f"task {index + 1} needs a title")
+            continue
+        group = task.get("assignment_group")
+        if group is not None and not isinstance(group, int):
+            errors.append(f"task {index + 1}: assignment_group must be a support group id")
+    return errors

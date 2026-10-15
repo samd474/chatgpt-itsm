@@ -38,8 +38,17 @@ jobs:
         with:
           python-version: "3.13"
       - run: sudo apt-get update && sudo apt-get install -y libmagic1
-      - run: pip install -r requirements-dev.txt
+      - run: pip install -r requirements-dev.txt pip-audit
+      - name: Dependency vulnerability audit
+        run: pip-audit -r requirements.txt
       - run: python manage.py check
+      - name: Deployment security checks
+        env:
+          DJANGO_DEBUG: "0"
+          DJANGO_SECRET_KEY: ci-only-secret-with-enough-length-to-satisfy-the-deploy-check-0123456789
+          POSTGRES_PASSWORD: ci-password
+          DJANGO_HSTS_SECONDS: "31536000"
+        run: python manage.py check --deploy --fail-level WARNING
       - run: python manage.py makemigrations --check --dry-run
       - run: pytest -q
 
@@ -56,6 +65,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - name: Dependency vulnerability audit
+        run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
       - run: npm run build
 

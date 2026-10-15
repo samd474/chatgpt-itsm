@@ -113,6 +113,7 @@ class HelpRequests(models.Model):
     priority = models.PositiveSmallIntegerField(default=4)
     status = models.CharField(max_length=30, choices=RequestStatus.choices, default=RequestStatus.NEW)
     request_payload = models.JSONField(default=dict, blank=True)
+    custom_fields = models.JSONField(default=dict, blank=True)
     resolution_code = models.CharField(max_length=60, blank=True)
     resolution_body = models.TextField(blank=True)
     first_response_time = models.DateTimeField(null=True, blank=True)
@@ -177,3 +178,76 @@ class Approval(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
+
+class FulfillmentTask(models.Model):
+    """A unit of work on a request (usually created from a catalog item's task templates)."""
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        IN_PROGRESS = "in_progress", "In progress"
+        DONE = "done", "Done"
+        CANCELLED = "cancelled", "Cancelled"
+
+    OPEN_STATUSES = (Status.OPEN, Status.IN_PROGRESS)
+
+    help_request = models.ForeignKey(HelpRequests, on_delete=models.CASCADE, related_name="tasks")
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    assignment_group = models.ForeignKey(SupportGroups, null=True, blank=True, on_delete=models.SET_NULL)
+    assignee = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="fulfillment_tasks")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
+    position = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["position", "pk"]
+
+
+class TicketTemplate(models.Model):
+    """Administrator-defined starting point for common tickets."""
+
+    name = models.CharField(max_length=120, unique=True)
+    help_text = models.CharField(max_length=240, blank=True)
+    request_type = models.CharField(max_length=30, choices=HelpRequests.RequestType.choices, default=HelpRequests.RequestType.INCIDENT)
+    subject = models.CharField(max_length=240, blank=True)
+    description = models.TextField(blank=True)
+    category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.SET_NULL)
+    service = models.ForeignKey(Services, null=True, blank=True, on_delete=models.SET_NULL)
+    assignment_group = models.ForeignKey(SupportGroups, null=True, blank=True, on_delete=models.SET_NULL)
+    impact = models.PositiveSmallIntegerField(choices=HelpRequests.Level.choices, default=HelpRequests.Level.MEDIUM)
+    urgency = models.PositiveSmallIntegerField(choices=HelpRequests.Level.choices, default=HelpRequests.Level.MEDIUM)
+    available_to_requesters = models.BooleanField(default=True)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class Queue(models.Model):
+    """A saved, administrator-defined view of tickets (always intersected with the viewer's scope)."""
+
+    class Ordering(models.TextChoices):
+        PRIORITY = "priority", "Highest priority first"
+        OLDEST = "created_at", "Oldest first"
+        NEWEST = "-created_at", "Newest first"
+        UPDATED = "-updated_at", "Recently updated"
+
+    name = models.CharField(max_length=120, unique=True)
+    description = models.CharField(max_length=240, blank=True)
+    filters = models.JSONField(default=dict, blank=True)
+    ordering = models.CharField(max_length=20, choices=Ordering.choices, default=Ordering.PRIORITY)
+    # Role names that see this queue; empty means every staff member.
+    visible_to_roles = models.JSONField(default=list, blank=True)
+    position = models.PositiveSmallIntegerField(default=0)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["position", "name"]
+
+    def __str__(self):
+        return self.name

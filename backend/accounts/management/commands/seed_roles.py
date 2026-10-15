@@ -23,6 +23,8 @@ ROLE_PERMISSIONS = {
         "add_importjob", "change_importjob", "view_importjob", "change_approval",
     ],
     "Auditor": ["view_helprequests", "view_auditevent"],
+    # Change Advisory Board: approvers for normal/emergency changes. Membership is managed by administrators.
+    "CAB": [],
 }
 
 

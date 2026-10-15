@@ -6,12 +6,12 @@ import { z } from "zod";
 import { apiErrorMessage } from "../api/client";
 import { useAuth } from "../auth/context";
 import { homePath } from "../auth/roles";
+import { Field, Notice } from "../components/ui";
 
 const schema = z.object({
-  username: z.string().min(1, "Username is required."),
-  password: z.string().min(1, "Password is required."),
+  username: z.string().min(1, "Enter your username."),
+  password: z.string().min(1, "Enter your password."),
 });
-
 type LoginForm = z.infer<typeof schema>;
 
 export function LoginPage() {
@@ -19,9 +19,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [serverError, setServerError] = useState("");
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({
-    resolver: zodResolver(schema),
-  });
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({ resolver: zodResolver(schema) });
 
   if (user) return <Navigate to={homePath(user)} replace />;
 
@@ -37,27 +35,22 @@ export function LoginPage() {
   }
 
   return (
-    <div className="login-page">
-      <form className="login-card" onSubmit={handleSubmit(onSubmit)} noValidate>
-        <div className="eyebrow">ITSM</div>
-        <h1>Sign in</h1>
-        <p className="muted">Use your service desk account.</p>
-
-        <label>Username
-          <input autoComplete="username" {...register("username")} />
-        </label>
-        {errors.username && <div className="field-error">{errors.username.message}</div>}
-
-        <label>Password
-          <input type="password" autoComplete="current-password" {...register("password")} />
-        </label>
-        {errors.password && <div className="field-error">{errors.password.message}</div>}
-
-        {serverError && <div className="alert alert--error">{serverError}</div>}
-        <button className="button" disabled={isSubmitting}>
-          {isSubmitting ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
+    <div className="auth">
+      <div className="auth-card">
+        <div className="brand"><span className="brand-mark">IT</span>Service Desk</div>
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+          <h1>Sign in to your account</h1>
+          <Field label="Username" error={errors.username?.message}>
+            <input className="input" autoComplete="username" autoFocus {...register("username")} />
+          </Field>
+          <Field label="Password" error={errors.password?.message}>
+            <input className="input" type="password" autoComplete="current-password" {...register("password")} />
+          </Field>
+          {serverError && <Notice tone="error">{serverError}</Notice>}
+          <button className="btn btn-primary" disabled={isSubmitting}>{isSubmitting ? "Signing in…" : "Sign in"}</button>
+        </form>
+        <p className="subtle" style={{ textAlign: "center" }}>Trouble signing in? Contact the service desk.</p>
+      </div>
     </div>
   );
 }

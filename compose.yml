@@ -56,6 +56,14 @@ services:
       - backend
       - redis
 
+  # Malware scanner for attachments. Optional in development (needs ~1.5 GB RAM):
+    #   docker compose --profile scan up -d clamav   and set CLAMAV_HOST=clamav in .env
+  clamav:
+    image: clamav/clamav:1.4
+    profiles: ["scan"]
+    volumes:
+      - clamav_data:/var/lib/clamav
+
   frontend:
     build: ./frontend
     environment:
@@ -73,3 +81,4 @@ volumes:
   postgres_data:
   redis_data:
   media_data:
+  clamav_data:

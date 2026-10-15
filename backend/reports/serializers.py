@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import AuditEvent, ImportJob
+from .models import AuditEvent, ExportJob, ImportJob
 
 
 class AuditEventSerializer(serializers.ModelSerializer):
@@ -27,3 +27,10 @@ class ImportJobSerializer(serializers.ModelSerializer):
         model = ImportJob
         fields = ["id", "kind", "state", "original_name", "preview", "result", "file", "created_at", "applied_at"]
         read_only_fields = ["id", "state", "original_name", "preview", "result", "created_at", "applied_at"]
+
+
+class ExportJobSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExportJob
+        fields = ["public_id", "kind", "params", "state", "row_count", "error", "created_at", "finished_at", "expires_at"]
+        read_only_fields = fields

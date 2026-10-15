@@ -2,7 +2,9 @@
 
 Self-hostable IT service management platform: React + TypeScript (Vite), Django REST Framework,
 PostgreSQL, Redis/Celery, Docker Compose and NGINX. Built following the *ITSM Project Build Guide*
-(Phase 1).
+(Phase 1), plus asset, contract, project and change management and an administrator console.
+
+See [SECURITY.md](SECURITY.md) for the security review and controls.
 
 ## Quick start (development)
 
@@ -10,14 +12,20 @@ PostgreSQL, Redis/Celery, Docker Compose and NGINX. Built following the *ITSM Pr
 cp .env.example .env          # then set DJANGO_SECRET_KEY and POSTGRES_PASSWORD
 docker compose up -d --build
 docker compose exec backend python manage.py migrate
-docker compose exec backend python manage.py seed_roles     # Requester/Technician/Manager/Administrator/Auditor groups
+docker compose exec backend python manage.py seed_roles     # Requester/Technician/Manager/Administrator/Auditor/CAB groups
 docker compose exec backend python manage.py seed_slas      # business calendar + SLA policies
 docker compose exec backend python manage.py seed_catalog   # three example catalog items
 docker compose exec backend python manage.py createsuperuser
 ```
 
-Open http://localhost:5173 and sign in. Add people to role groups and support groups in
-Django admin (http://localhost:5173/admin/).
+Open http://localhost:5173 and sign in. Superusers count as Administrators: use **Administration →
+Users & roles** to create accounts, assign roles and support groups. Everything else an administrator
+configures (support groups, categories, services, ticket templates, queues, custom fields, catalog items,
+SLA policies, business hours, email templates, asset types, locations) lives under **Administration**.
+Django admin (`/admin/`) remains available for advanced edits.
+
+Malware scanning is optional in development (`docker compose --profile scan up -d clamav`, then set
+`CLAMAV_HOST=clamav` in `.env`); it is always on, and fails closed, in production.
 
 The browser only talks to the Vite origin; Vite proxies `/api` and `/admin` to Django, so the
 session and CSRF cookies behave the same way they will behind NGINX in production.
@@ -31,7 +39,12 @@ session and CSRF cookies behave the same way they will behind NGINX in productio
 | `catalog`   | `catalog`      | Catalog items, form-schema validation, request submission |
 | `slas`      | `slas`         | Business calendars, SLA policies, due-date maths, pause/resume, Celery threshold check |
 | `notifications` | `alerts`   | Notification events and per-recipient email deliveries |
-| `audit` + reports | `reports` | Append-only `AuditEvent`, service desk report, CSV export helpers, staged CSV import |
+| `audit` + reports | `reports` | Append-only `AuditEvent`, service desk report, CSV exports (background for large ones), staged CSV import |
+| — | `core` | Shared permissions, audited CRUD viewsets, custom field definitions, ClamAV scanner, auth backend |
+| — | `assets` | Asset types, locations, assets, relationships, ticket links, history |
+| — | `contracts` | Vendors, contracts, renewal reminders (financial fields hidden from technicians) |
+| — | `projects` | Projects, members, milestones, tasks with dependencies |
+| — | `changes` | Change requests, CAB approvals, scheduling, conflict detection, calendar |
 
 `rules` and `solutions` are empty placeholders for later phases.
 
@@ -48,6 +61,15 @@ session and CSRF cookies behave the same way they will behind NGINX in productio
 | `GET /api/catalog/items/`, `POST /api/catalog/items/{slug}/submit/` | Service catalog |
 | `GET /api/approvals/`, `POST /api/approvals/{id}/decide/` | Approver queue |
 | `GET /api/support-groups/`, `/api/categories/`, `/api/services/`, `/api/technicians/` | Lookups |
+| `GET/POST /api/help-requests/{id}/tasks/`, `PATCH /api/tasks/{id}/` | Fulfilment tasks |
+| `GET /api/queues/`, `GET /api/queues/{id}/tickets/` | Admin-defined queues |
+| `GET /api/ticket-templates/`, `GET /api/custom-fields/?entity=` | Templates and custom field definitions |
+| `/api/assets/items/`, `/api/assets/types/`, `/api/assets/locations/` | Asset management |
+| `/api/contracts/items/`, `/api/contracts/vendors/` | Contract management |
+| `/api/projects/items/`, `/api/projects/tasks/`, `/api/projects/milestones/` | Project management |
+| `/api/changes/items/` (+ `transition/`, `conflicts/`, `calendar/`), `/api/changes/approvals/` | Change management |
+| `/api/admin/users/`, `/api/admin/roles/`, `/api/admin/catalog-items/`, `/api/admin/sla-policies/`, `/api/admin/business-calendars/`, `/api/admin/notification-templates/` | Administrator console |
+| `GET /api/exports/`, `GET /api/exports/{id}/download/` | Background export files (owner only) |
 | `GET /api/reports/service-desk/` | Manager dashboard |
 | `GET /api/audit/` | Audit search (Auditor/Administrator) |
 | `POST /api/imports/`, `POST /api/imports/{id}/confirm/` | Staged CSV import (Administrator) |
@@ -76,6 +98,6 @@ For editor tooling outside Docker: `python -m venv .venv && .venv/bin/pip instal
 
 ## Known gaps
 
-- `services.scan_file` is a placeholder malware-scan hook; wire in a real scanner before production.
-- Large CSV exports run in the request; move them to a Celery task if they get slow.
-- Catalog items have no fulfilment task templates yet; approved requests go straight to the assignment group.
+- Catalog fulfilment tasks are created from templates but have no SLA of their own yet.
+- Asset discovery/import from external inventory tools isn't built; use the API or Django admin.
+- Change approvals use the CAB role; per-service approver groups would be a natural next step.

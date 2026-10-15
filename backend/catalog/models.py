@@ -17,6 +17,8 @@ class CatalogItem(models.Model):
     requires_approval = models.BooleanField(default=False)
     # Who approves. Empty means the assignment group's managers.
     approvers = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name="catalog_items_to_approve")
+    # [{"title": "...", "description": "...", "assignment_group": <support group id>}]
+    fulfillment_tasks = models.JSONField(default=list, blank=True)
     active = models.BooleanField(default=True)
 
     class Meta:
@@ -28,9 +30,14 @@ class CatalogItem(models.Model):
     def clean(self):
         from .validation import validate_schema
 
+        from .validation import validate_task_templates
+
         errors = validate_schema(self.form_schema)
         if errors:
             raise ValidationError({"form_schema": errors})
+        task_errors = validate_task_templates(self.fulfillment_tasks)
+        if task_errors:
+            raise ValidationError({"fulfillment_tasks": task_errors})
         for field in ("default_impact", "default_urgency"):
             if getattr(self, field) not in (1, 2, 3):
                 raise ValidationError({field: "Use 1 (critical), 2 (high) or 3 (medium)."})

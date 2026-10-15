@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_filters",
     "corsheaders",
+    "core",
     "accounts",
     "helprequests",
     "catalog",
@@ -59,13 +60,20 @@ INSTALLED_APPS = [
     "rules",
     "reports",
     "alerts",
+    "assets",
+    "contracts",
+    "projects",
+    "changes",
 ]
+
+AUTHENTICATION_BACKENDS = ["core.auth_backends.EnabledUserBackend"]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "config.middleware.RequestIDMiddleware",
+    "config.middleware.SecurityHeadersMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -79,7 +87,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -134,6 +142,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Uploaded attachments. These are never served directly; downloads go through
 # an authorized API endpoint.
@@ -144,7 +153,19 @@ ATTACHMENT_BLOCKED_EXTENSIONS = {
     ".exe", ".dll", ".bat", ".cmd", ".com", ".msi", ".ps1", ".vbs", ".js",
     ".jar", ".scr", ".sh", ".hta", ".cpl", ".lnk", ".reg",
 }
-DATA_UPLOAD_MAX_MEMORY_SIZE = ATTACHMENT_MAX_BYTES
+# Malware scanning (ClamAV clamd). Uploads are refused when scanning is required but unavailable.
+CLAMAV_HOST = env("CLAMAV_HOST", "")
+CLAMAV_PORT = int(env("CLAMAV_PORT", "3310"))
+CLAMAV_TIMEOUT = int(env("CLAMAV_TIMEOUT", "30"))
+ATTACHMENT_SCAN_REQUIRED = env("ATTACHMENT_SCAN_REQUIRED", "0" if DEBUG else "1") == "1"
+
+# Non-file request bodies (JSON) stay small; file uploads are limited by ATTACHMENT_MAX_BYTES.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
+
+# CSV exports above this many rows are generated in the background.
+EXPORT_SYNC_LIMIT = int(env("EXPORT_SYNC_LIMIT", "2000"))
+EXPORT_RETENTION_HOURS = int(env("EXPORT_RETENTION_HOURS", "24"))
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -161,17 +182,29 @@ REST_FRAMEWORK = {
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ],
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "config.pagination.StandardPagination",
     "PAGE_SIZE": 50,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
     "DEFAULT_THROTTLE_RATES": {
+        "anon": env("ANON_THROTTLE_RATE", "60/min"),
+        "user": env("USER_THROTTLE_RATE", "600/min"),
         "login": env("LOGIN_THROTTLE_RATE", "10/min"),
+        "uploads": env("UPLOAD_THROTTLE_RATE", "30/min"),
+        "exports": env("EXPORT_THROTTLE_RATE", "10/hour"),
     },
+    "EXCEPTION_HANDLER": "config.exceptions.exception_handler",
 }
 
 CORS_ALLOWED_ORIGINS = ["http://localhost:5173"] if DEBUG else []
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_AGE = int(env("SESSION_COOKIE_AGE", str(8 * 60 * 60)))
+SESSION_SAVE_EVERY_REQUEST = True  # sliding expiry: idle sessions end after SESSION_COOKIE_AGE
+SECURE_REFERRER_POLICY = "same-origin"
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
@@ -184,6 +217,14 @@ CELERY_BEAT_SCHEDULE = {
     "check-sla-thresholds-every-minute": {
         "task": "slas.tasks.check_sla_thresholds",
         "schedule": 60.0,
+    },
+    "contract-renewal-reminders-daily": {
+        "task": "contracts.tasks.send_renewal_reminders",
+        "schedule": 24 * 60 * 60.0,
+    },
+    "delete-expired-exports-hourly": {
+        "task": "reports.tasks.delete_expired_exports",
+        "schedule": 60 * 60.0,
     },
 }
 
@@ -221,6 +262,11 @@ LOGGING = {
         "django.server": {"level": "WARNING"},
     },
 }
+
+if not DEBUG and not SECRET_KEY:
+    raise RuntimeError("DJANGO_SECRET_KEY must be set when DEBUG is off.")
+if not DEBUG and env("POSTGRES_PASSWORD", "") in ("", "postgres", "replace-me"):
+    raise RuntimeError("Set a real POSTGRES_PASSWORD when DEBUG is off.")
 
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

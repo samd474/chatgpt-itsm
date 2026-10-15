@@ -19,7 +19,9 @@ from reports.audit import write_audit_event
 from slas import services as sla_services
 
 from .access import works_ticket
-from .models import Approval, Attachment, HelpRequests, HelpRequestsComment
+from core.scanning import ScanUnavailable, scan_file
+
+from .models import Approval, Attachment, FulfillmentTask, HelpRequests, HelpRequestsComment
 from .priority import calculate_priority
 
 Status = HelpRequests.RequestStatus
@@ -145,6 +147,10 @@ def transition_help_request(help_request, *, new_status, actor, reason="", resol
 
     if new_status in (Status.RESOLVED, Status.CLOSED) and not help_request.resolution_body.strip():
         raise ValidationError({"resolution_body": "Required when resolving or closing."})
+    if new_status in (Status.RESOLVED, Status.CLOSED) and help_request.tasks.filter(
+        status__in=FulfillmentTask.OPEN_STATUSES
+    ).exists():
+        raise ValidationError({"status": "Complete or cancel the open fulfilment tasks first."})
     if new_status == Status.ASSIGNED and not (help_request.technician_id or help_request.assignment_group_id):
         raise ValidationError({"status": "Set a technician or assignment group before assigning."})
 
@@ -204,11 +210,6 @@ def add_comment(help_request, *, author, body, visibility, request=None):
     return comment
 
 
-def scan_file(uploaded_file):
-    """Malware-scanning hook. Replace with a real scanner (e.g. ClamAV) before production."""
-    return True
-
-
 def _sniff_content_type(uploaded_file, filename):
     try:
         import magic
@@ -220,7 +221,6 @@ def _sniff_content_type(uploaded_file, filename):
         return mimetypes.guess_type(filename)[0] or "application/octet-stream"
 
 
-@transaction.atomic
 def add_attachment(help_request, *, uploaded_by, uploaded_file, comment=None, request=None):
     filename = os.path.basename(uploaded_file.name or "upload")
     extension = os.path.splitext(filename)[1].lower()
@@ -238,22 +238,31 @@ def add_attachment(help_request, *, uploaded_by, uploaded_file, comment=None, re
         digest.update(chunk)
     uploaded_file.seek(0)
 
-    if not scan_file(uploaded_file):
-        raise ValidationError({"file": "The file failed the malware scan."})
+    try:
+        result = scan_file(uploaded_file)
+    except ScanUnavailable:
+        raise ValidationError({"file": "Uploads are temporarily unavailable because the malware scanner is offline."})
+    if not result.clean:
+        write_audit_event(request, "attachment.malware_blocked", obj=help_request, actor=uploaded_by,
+                          metadata={"name": filename[:255], "signature": result.detail, "sha256": digest.hexdigest()})
+        raise ValidationError({"file": "The file was rejected by the malware scanner."})
 
-    attachment = Attachment.objects.create(
-        help_request=help_request,
-        comment=comment,
-        uploaded_by=uploaded_by,
-        file=uploaded_file,
-        original_name=filename[:255],
-        size_bytes=uploaded_file.size,
-        content_type=content_type[:120],
-        sha256=digest.hexdigest(),
-    )
-    write_audit_event(request, "attachment.uploaded", obj=help_request, actor=uploaded_by,
-                      metadata={"attachment_id": attachment.pk, "name": attachment.original_name,
-                                "sha256": attachment.sha256, "size_bytes": attachment.size_bytes})
+    # Validation and scanning happen outside the transaction so a "malware blocked"
+    # audit event is never rolled back along with the rejected upload.
+    with transaction.atomic():
+        attachment = Attachment.objects.create(
+            help_request=help_request,
+            comment=comment,
+            uploaded_by=uploaded_by,
+            file=uploaded_file,
+            original_name=filename[:255],
+            size_bytes=uploaded_file.size,
+            content_type=content_type[:120],
+            sha256=digest.hexdigest(),
+        )
+        write_audit_event(request, "attachment.uploaded", obj=help_request, actor=uploaded_by,
+                          metadata={"attachment_id": attachment.pk, "name": attachment.original_name,
+                                    "sha256": attachment.sha256, "size_bytes": attachment.size_bytes})
     return attachment
 
 
@@ -273,6 +282,8 @@ def decide_approval(approval, *, actor, state, comment="", request=None):
     approval = Approval.objects.select_for_update().select_related("help_request").get(pk=approval.pk)
     if approval.approver.pk != actor.pk:
         raise PermissionDenied("Only the assigned approver can decide this approval.")
+    if approval.help_request.requester_id == actor.pk:
+        raise PermissionDenied("You cannot approve your own request.")
     if approval.state != Approval.State.PENDING:
         raise ValidationError({"state": "This approval has already been decided."})
     if state not in (Approval.State.APPROVED, Approval.State.REJECTED):
@@ -296,5 +307,52 @@ def decide_approval(approval, *, actor, state, comment="", request=None):
         help_request.save(update_fields=["status", "updated_at"])
         write_audit_event(request, "ticket.status_changed", obj=help_request, actor=actor,
                           metadata={"reason": "Approval rejected"})
+    if state == Approval.State.APPROVED:
+        from catalog.models import CatalogItem
+
+        item = CatalogItem.objects.filter(slug=help_request.request_payload.get("catalog_item")).first()
+        if item is not None:
+            create_fulfillment_tasks(help_request, item.fulfillment_tasks, request=request)
     notify(f"approval.{state}", help_request, recipients=[help_request.requester])
     return approval
+
+
+def create_fulfillment_tasks(help_request, templates, *, request=None):
+    """Create the catalog item's fulfilment tasks (once) for an approved or approval-free request."""
+    if help_request.tasks.exists():
+        return []
+    from .models import SupportGroups
+
+    created = []
+    for position, template in enumerate(templates or []):
+        group = SupportGroups.objects.filter(pk=template.get("assignment_group")).first() if template.get("assignment_group") else None
+        created.append(FulfillmentTask.objects.create(
+            help_request=help_request,
+            title=str(template.get("title", ""))[:200],
+            description=str(template.get("description", ""))[:4000],
+            assignment_group=group or help_request.assignment_group,
+            position=position,
+        ))
+    if created:
+        write_audit_event(request, "ticket.tasks_created", obj=help_request, actor=None,
+                          metadata={"task_ids": [t.pk for t in created]})
+    return created
+
+
+@transaction.atomic
+def update_task(task, *, actor, changes, request=None):
+    task = FulfillmentTask.objects.select_for_update().get(pk=task.pk)
+    if not works_ticket(actor, task.help_request) and task.assignee != actor:
+        raise PermissionDenied("You cannot change this task.")
+    before = {"status": task.status, "assignee": task.assignee.pk if task.assignee else None}
+    for field, value in changes.items():
+        setattr(task, field, value)
+    if task.status == FulfillmentTask.Status.DONE and task.completed_at is None:
+        task.completed_at = timezone.now()
+    elif task.status != FulfillmentTask.Status.DONE:
+        task.completed_at = None
+    task.save()
+    write_audit_event(request, "ticket.task_updated", obj=task.help_request, actor=actor, before=before,
+                      after={"status": task.status, "assignee": task.assignee.pk if task.assignee else None},
+                      metadata={"task_id": task.pk})
+    return task

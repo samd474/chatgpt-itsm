@@ -6,6 +6,7 @@ from . import views
 router = DefaultRouter()
 router.register("audit", views.AuditEventViewSet, basename="audit")
 router.register("imports", views.ImportJobViewSet, basename="imports")
+router.register("exports", views.ExportJobViewSet, basename="exports")
 
 urlpatterns = [
     path("reports/service-desk/", views.service_desk_report),

@@ -10,7 +10,7 @@ from django.utils import timezone
 from accounts.models import User
 
 from .models import NotificationDelivery, NotificationEvent
-from .templates import TEMPLATES
+from .templates import get_template
 
 logger = logging.getLogger(__name__)
 MAX_ATTEMPTS = 5
@@ -20,7 +20,7 @@ MAX_ATTEMPTS = 5
 def send_notification(self, event_key):
     """Retry-safe: only deliveries still queued are sent, each row is locked while sending."""
     event = NotificationEvent.objects.get(event_key=event_key)
-    subject_template, body_template = TEMPLATES[event.event_type]
+    subject_template, body_template = get_template(event.event_type)
     deliveries = NotificationDelivery.objects.filter(event=event)
     names = {
         user.email: user.get_full_name() or user.get_username()

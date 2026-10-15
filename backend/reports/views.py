@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.db.models import Count, Q
+from django.http import FileResponse, Http404
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
@@ -13,10 +14,12 @@ from accounts.roles import ADMINISTRATOR, AUDITOR, MANAGER, has_role
 from helprequests.access import visible_HelpRequests
 from helprequests.models import HelpRequests
 
+from core.permissions import IsAdministrator
+
 from . import imports
 from .audit import write_audit_event
-from .models import AuditEvent, ImportJob
-from .serializers import AuditEventSerializer, ImportJobSerializer
+from .models import AuditEvent, ExportJob, ImportJob
+from .serializers import AuditEventSerializer, ExportJobSerializer, ImportJobSerializer
 
 
 class IsAuditReader(BasePermission):
@@ -27,11 +30,6 @@ class IsAuditReader(BasePermission):
 class IsReportReader(BasePermission):
     def has_permission(self, request, view):
         return has_role(request.user, MANAGER, ADMINISTRATOR)
-
-
-class IsAdministrator(BasePermission):
-    def has_permission(self, request, view):
-        return has_role(request.user, ADMINISTRATOR)
 
 
 class AuditEventViewSet(viewsets.ReadOnlyModelViewSet):
@@ -106,3 +104,28 @@ class ImportJobViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.Re
             raise ValidationError({"preview": "There are no valid rows to import."})
         job = imports.apply(job, actor=request.user, request=request)
         return Response(self.get_serializer(job).data)
+
+
+class ExportJobViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """A user only ever sees and downloads their own export files."""
+
+    serializer_class = ExportJobSerializer
+    lookup_field = "public_id"
+    pagination_class = None
+
+    def get_queryset(self):
+        return ExportJob.objects.filter(requested_by=self.request.user)[:50]
+
+    def get_object(self):
+        obj = ExportJob.objects.filter(requested_by=self.request.user, public_id=self.kwargs["public_id"]).first()
+        if obj is None:
+            raise Http404
+        return obj
+
+    @action(detail=True, methods=["get"])
+    def download(self, request, public_id=None):
+        job = self.get_object()
+        if job.state != ExportJob.State.DONE or not job.file or (job.expires_at and job.expires_at < timezone.now()):
+            raise Http404
+        write_audit_event(request, "export.downloaded", obj=job, metadata={"row_count": job.row_count})
+        return FileResponse(job.file.open("rb"), as_attachment=True, filename="help-requests.csv", content_type="text/csv")

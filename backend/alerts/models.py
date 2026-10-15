@@ -38,3 +38,16 @@ class NotificationDelivery(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["event", "channel", "recipient"], name="unique_delivery_per_recipient"),
         ]
+
+
+class NotificationTemplate(models.Model):
+    """Administrator override of a built-in email template (see alerts.templates)."""
+
+    event_type = models.CharField(max_length=80, unique=True)
+    subject = models.CharField(max_length=200)
+    body = models.TextField()
+    enabled = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["event_type"]

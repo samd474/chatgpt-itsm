@@ -49,6 +49,8 @@ export type Ticket = {
   priority: number;
   status: TicketStatus;
   request_payload: Record<string, unknown>;
+  custom_fields: Record<string, unknown>;
+  open_tasks: number;
   resolution_code: string;
   resolution_body: string;
   first_response_time: string | null;
@@ -150,4 +152,201 @@ export type ImportJob = {
   result: { created?: number; updated?: number; skipped_errors?: number };
   created_at: string;
   applied_at: string | null;
+};
+
+export type CustomFieldDef = {
+  id: number;
+  entity: "ticket" | "asset" | "change" | "project" | "contract";
+  key: string;
+  label: string;
+  field_type: "text" | "textarea" | "date" | "boolean" | "select";
+  options: string[];
+  required: boolean;
+  visible_to_requester: boolean;
+  position: number;
+  active: boolean;
+};
+
+export type TicketTemplate = {
+  id: number;
+  name: string;
+  help_text: string;
+  request_type: "incident" | "request";
+  subject: string;
+  description: string;
+  category: number | null;
+  service: number | null;
+  assignment_group: number | null;
+  impact: number;
+  urgency: number;
+  available_to_requesters: boolean;
+  active: boolean;
+};
+
+export type Queue = { id: number; name: string; description: string; filters: Record<string, unknown>; ordering: string; visible_to_roles: string[]; position: number; active: boolean };
+
+export type FulfillmentTask = {
+  id: number;
+  title: string;
+  description: string;
+  assignment_group: number | null;
+  assignment_group_name: string | null;
+  assignee: number | null;
+  assignee_name: string | null;
+  status: "open" | "in_progress" | "done" | "cancelled";
+  position: number;
+  created_at: string;
+  completed_at: string | null;
+};
+
+export type ExportJob = {
+  public_id: string;
+  kind: string;
+  params: Record<string, string>;
+  state: "queued" | "running" | "done" | "failed";
+  row_count: number;
+  error: string;
+  created_at: string;
+  finished_at: string | null;
+  expires_at: string | null;
+};
+
+export type Asset = {
+  id: number;
+  asset_tag: string;
+  name: string;
+  asset_type: number;
+  asset_type_name: string;
+  status: string;
+  serial_number: string;
+  manufacturer: string;
+  model: string;
+  location: number | null;
+  location_name: string | null;
+  owner?: number | null;
+  owner_name?: string | null;
+  assigned_to?: number | null;
+  assigned_to_name?: string | null;
+  support_group?: number | null;
+  purchase_date?: string | null;
+  purchase_cost?: string | null;
+  warranty_expires: string | null;
+  notes?: string;
+  custom_fields?: Record<string, unknown>;
+  linked_tickets?: { public_id: string; request_number: string | null; subject: string; status: TicketStatus }[];
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type AssetRelationship = { id: number; source: number; source_label: string; target: number; target_label: string; kind: string };
+
+export type Contract = {
+  id: number;
+  number: string;
+  name: string;
+  vendor: number;
+  vendor_name: string;
+  contract_type: string;
+  status: string;
+  start_date: string;
+  end_date: string;
+  days_remaining: number;
+  value?: string | null;
+  currency?: string;
+  billing_frequency?: string;
+  auto_renew: boolean;
+  renewal_notice_days: number;
+  owner: number | null;
+  owner_name: string | null;
+  notes: string;
+  custom_fields: Record<string, unknown>;
+  assets: number[];
+  services: number[];
+};
+
+export type ProjectMember = { user: number; name: string; role: "contributor" | "viewer" };
+
+export type Project = {
+  id: number;
+  key: string;
+  name: string;
+  description: string;
+  status: string;
+  manager: number;
+  manager_name: string;
+  members: ProjectMember[];
+  start_date: string | null;
+  target_date: string | null;
+  completed_at: string | null;
+  budget: string | null;
+  custom_fields: Record<string, unknown>;
+  progress: { total: number; done: number; percent: number };
+};
+
+export type Milestone = { id: number; project: number; name: string; due_date: string | null; completed: boolean };
+
+export type ProjectTask = {
+  id: number;
+  project: number;
+  number: string;
+  title: string;
+  description: string;
+  status: "todo" | "in_progress" | "blocked" | "done";
+  priority: number;
+  assignee: number | null;
+  assignee_name: string | null;
+  milestone: number | null;
+  depends_on: number[];
+  due_date: string | null;
+  estimate_hours: string | null;
+  position: number;
+};
+
+export type ChangeApproval = {
+  id: number;
+  change: number;
+  change_number: string;
+  change_title: string;
+  approver: number;
+  approver_name: string | null;
+  state: "pending" | "approved" | "rejected" | "cancelled";
+  comment: string;
+  decided_at: string | null;
+  created_at: string;
+};
+
+export type ChangeStatus = "draft" | "awaiting_approval" | "approved" | "scheduled" | "implementing" | "review" | "closed" | "rejected" | "cancelled";
+
+export type Change = {
+  id: number;
+  number: string;
+  title: string;
+  description: string;
+  justification: string;
+  change_type: "standard" | "normal" | "emergency";
+  status: ChangeStatus;
+  risk: "low" | "medium" | "high";
+  impact: number;
+  service: number | null;
+  assignment_group: number | null;
+  requested_by: number;
+  requested_by_name: string | null;
+  implementer: number | null;
+  implementer_name: string | null;
+  implementation_plan: string;
+  backout_plan: string;
+  test_plan: string;
+  planned_start: string | null;
+  planned_end: string | null;
+  actual_start: string | null;
+  actual_end: string | null;
+  outcome: string;
+  closure_notes: string;
+  custom_fields: Record<string, unknown>;
+  assets: number[];
+  help_requests: string[];
+  approvals: ChangeApproval[];
+  conflict_count: number;
+  created_at: string;
+  updated_at: string;
 };

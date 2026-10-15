@@ -10,8 +10,7 @@ export function hasRole(user: User | null, ...roles: string[]): boolean {
 export const isStaff = (user: User | null) => hasRole(user, "Technician", "Manager", "Administrator");
 
 export function homePath(user: User): string {
-  if (hasRole(user, "Administrator")) return "/admin/config";
-  if (hasRole(user, "Technician", "Manager")) return "/tech/queue";
+  if (hasRole(user, "Technician", "Manager", "Administrator")) return "/tech/queue";
   if (hasRole(user, "Auditor")) return "/audit";
   return "/portal";
 }

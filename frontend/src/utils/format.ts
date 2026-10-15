@@ -8,6 +8,27 @@ export function formatDate(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
+export function formatDay(value: string | null | undefined) {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value.length === 10 ? `${value}T00:00:00` : value));
+}
+
+export function relativeTime(value: string | null | undefined) {
+  if (!value) return "-";
+  const diff = (new Date(value).getTime() - Date.now()) / 1000;
+  const units: [Intl.RelativeTimeFormatUnit, number][] = [["year", 31536000], ["month", 2592000], ["week", 604800], ["day", 86400], ["hour", 3600], ["minute", 60]];
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  for (const [unit, seconds] of units) {
+    if (Math.abs(diff) >= seconds) return rtf.format(Math.round(diff / seconds), unit);
+  }
+  return "just now";
+}
+
+export function formatMoney(value: string | null | undefined, currency = "USD") {
+  if (value === null || value === undefined || value === "") return "-";
+  return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(Number(value));
+}
+
 const STATUS_LABELS: Record<TicketStatus, string> = {
   new: "New",
   assigned: "Assigned",
@@ -45,3 +66,12 @@ export const ALLOWED_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   closed: ["in_progress"],
   cancelled: [],
 };
+
+export function humanize(value: string) {
+  const text = value.replaceAll("_", " ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+export function initials(name: string | null | undefined) {
+  return (name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
+}

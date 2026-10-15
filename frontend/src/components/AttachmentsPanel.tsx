@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Paperclip, Upload } from "lucide-react";
 import { useRef } from "react";
 import { attachmentDownloadUrl, getAttachments, uploadAttachment } from "../api/tickets";
-import { apiErrorMessage } from "../api/client";
-import { formatBytes, formatDate } from "../utils/format";
+import { apiFieldErrors } from "./form";
+import { Card, Notice } from "./ui";
+import { formatBytes, relativeTime } from "../utils/format";
 
 export function AttachmentsPanel({ publicId, canUpload }: { publicId: string; canUpload: boolean }) {
   const queryClient = useQueryClient();
@@ -17,24 +19,24 @@ export function AttachmentsPanel({ publicId, canUpload }: { publicId: string; ca
   });
 
   return (
-    <div className="panel">
-      <h2>Attachments</h2>
-      {query.data?.length === 0 && <p className="muted">No attachments.</p>}
-      <ul className="file-list">
+    <Card title="Attachments" actions={canUpload && (
+      <label className="btn btn-secondary btn-sm"><Upload />{upload.isPending ? "Scanning…" : "Upload"}
+        <input ref={input} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate(f); }} disabled={upload.isPending} />
+      </label>
+    )}>
+      {query.data?.length === 0 && <p className="subtle">No files attached.</p>}
+      <div className="list">
         {query.data?.map((a) => (
-          <li key={a.id}>
-            {/* Downloads go through Django so authorization is checked on every request. */}
+          <div className="list-item" key={a.id}>
+            <Paperclip />
+            {/* Downloads go through Django so authorization is checked every time. */}
             <a href={attachmentDownloadUrl(publicId, a.id)}>{a.original_name}</a>
-            <span className="muted"> {formatBytes(a.size_bytes)} · {a.uploaded_by_name} · {formatDate(a.created_at)}</span>
-          </li>
+            <span className="spacer" />
+            <span className="subtle">{formatBytes(a.size_bytes)} · {relativeTime(a.created_at)}</span>
+          </div>
         ))}
-      </ul>
-      {canUpload && (
-        <div className="inline-form">
-          <input ref={input} type="file" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate(f); }} disabled={upload.isPending} />
-        </div>
-      )}
-      {upload.isError && <div className="alert alert--error">{apiErrorMessage(upload.error)}</div>}
-    </div>
+      </div>
+      {upload.isError && <div style={{ marginTop: 10 }}><Notice tone="error">{apiFieldErrors(upload.error).fields.file ?? apiFieldErrors(upload.error).general}</Notice></div>}
+    </Card>
   );
 }

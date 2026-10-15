@@ -19,9 +19,16 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --appendonly yes
+    # Set REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0 in .env
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?set REDIS_PASSWORD}
     volumes:
       - redis_data:/data
+
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    volumes:
+      - clamav_data:/var/lib/clamav
 
   backend:
     build:
@@ -29,6 +36,9 @@ services:
       dockerfile: Dockerfile.prod
     restart: unless-stopped
     env_file: .env
+    environment:
+      CLAMAV_HOST: clamav
+      ATTACHMENT_SCAN_REQUIRED: "1"
     volumes:
       - media_data:/app/media
     ports:
@@ -67,3 +77,4 @@ volumes:
   postgres_data:
   redis_data:
   media_data:
+  clamav_data:

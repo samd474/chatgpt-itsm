@@ -40,8 +40,11 @@ def submit_catalog_item(item, *, requester, answers, request=None):
         request_payload={"catalog_item": item.slug, "answers": cleaned},
     )
     if item.requires_approval:
-        approvers = approvers_for(item)
+        # Separation of duties: nobody approves their own request.
+        approvers = [a for a in approvers_for(item) if a.pk != requester.pk]
         if not approvers:
             raise ValidationError({"detail": "No approver is configured for this item. Contact the service desk."})
         ticket_services.request_approvals(help_request, approvers, request=request)
+    else:
+        ticket_services.create_fulfillment_tasks(help_request, item.fulfillment_tasks, request=request)
     return help_request

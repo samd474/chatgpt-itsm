@@ -9,6 +9,18 @@ export default defineConfig(({ mode }) => {
   const target = env.VITE_DEV_PROXY_TARGET || "http://backend:8000";
   return {
     plugins: [react()],
+    build: {
+      rollupOptions: {
+        output: {
+          // Long-lived vendor chunks so app updates don't re-download libraries.
+          manualChunks: {
+            react: ["react", "react-dom", "react-router-dom"],
+            data: ["@tanstack/react-query", "axios", "zod", "react-hook-form", "@hookform/resolvers"],
+            icons: ["lucide-react"],
+          },
+        },
+      },
+    },
     server: {
       host: "0.0.0.0",
       port: 5173,

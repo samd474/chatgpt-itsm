@@ -1,51 +1,82 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { decideApproval, getMyApprovals } from "../../api/tickets";
+import { listAll, postAction, ENDPOINTS } from "../../api/resources";
 import { apiErrorMessage } from "../../api/client";
-import { EmptyState, ErrorState, LoadingState } from "../../components/Feedback";
-import type { Approval } from "../../types";
-import { formatDate } from "../../utils/format";
+import { useAuth } from "../../auth/context";
+import { isStaff } from "../../auth/roles";
+import { Pill } from "../../components/badges";
+import { Card, EmptyState, LoadingState, Notice, PageHeader, Tabs } from "../../components/ui";
+import type { ChangeApproval } from "../../types";
+import { relativeTime } from "../../utils/format";
 
-function ApprovalCard({ approval }: { approval: Approval }) {
+function Decision({ title, eyebrow, link, created, state, comment, decide }: {
+  title: string; eyebrow: string; link?: string; created: string; state: string; comment: string;
+  decide: (state: "approved" | "rejected", comment: string) => Promise<unknown>;
+}) {
   const queryClient = useQueryClient();
-  const [comment, setComment] = useState("");
-  const decide = useMutation({
-    mutationFn: (state: "approved" | "rejected") => decideApproval(approval.id, state, comment),
+  const [note, setNote] = useState("");
+  const mutation = useMutation({
+    mutationFn: (s: "approved" | "rejected") => decide(s, note),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["approvals"] }),
   });
   return (
-    <article className="panel">
-      <div className="eyebrow">{approval.request_number}</div>
-      <h2>{approval.subject}</h2>
-      <p className="muted">Requested {formatDate(approval.created_at)}</p>
-      {approval.state === "pending" ? <>
-        <textarea rows={2} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Optional comment" />
-        {decide.isError && <div className="alert alert--error">{apiErrorMessage(decide.error)}</div>}
-        <div className="badge-row">
-          <button className="button" disabled={decide.isPending} onClick={() => decide.mutate("approved")}>Approve</button>
-          <button className="button button--secondary" disabled={decide.isPending} onClick={() => decide.mutate("rejected")}>Reject</button>
-        </div>
-      </> : <p><strong>{approval.state}</strong> {formatDate(approval.decided_at)} {approval.comment && `- ${approval.comment}`}</p>}
-    </article>
+    <Card>
+      <div className="stack" style={{ gap: 10 }}>
+        <div className="row"><span className="eyebrow">{eyebrow}</span><span className="spacer" /><span className="subtle">{relativeTime(created)}</span></div>
+        <h2>{link ? <Link to={link}>{title}</Link> : title}</h2>
+        {state === "pending" ? <>
+          <textarea className="textarea" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Comment (optional)" />
+          {mutation.isError && <Notice tone="error">{apiErrorMessage(mutation.error)}</Notice>}
+          <div className="form-actions">
+            <button className="btn btn-danger" disabled={mutation.isPending} onClick={() => mutation.mutate("rejected")}>Reject</button>
+            <button className="btn btn-primary" disabled={mutation.isPending} onClick={() => mutation.mutate("approved")}>Approve</button>
+          </div>
+        </> : <div className="row"><Pill value={state} />{comment && <span className="muted">“{comment}”</span>}</div>}
+      </div>
+    </Card>
   );
 }
 
 export function ApprovalsPage() {
-  const [state, setState] = useState("pending");
-  const query = useQuery({ queryKey: ["approvals", state], queryFn: () => getMyApprovals(state || undefined) });
+  const { user } = useAuth();
+  const [tab, setTab] = useState<"requests" | "changes">("requests");
+  const [pendingOnly, setPendingOnly] = useState(true);
+  const requests = useQuery({ queryKey: ["approvals", "requests", pendingOnly], queryFn: () => getMyApprovals(pendingOnly ? "pending" : undefined) });
+  const changes = useQuery({
+    queryKey: ["approvals", "changes", pendingOnly], enabled: isStaff(user),
+    queryFn: () => listAll<ChangeApproval>(ENDPOINTS.changeApprovals, { state: pendingOnly ? "pending" : undefined }),
+  });
+
   return (
-    <section>
-      <div className="page-heading">
-        <div><h1>My approvals</h1><p>Requests waiting for your decision.</p></div>
-        <select value={state} onChange={(e) => setState(e.target.value)} aria-label="Approval state" className="select--auto">
-          <option value="pending">Pending</option>
-          <option value="">All</option>
-        </select>
-      </div>
-      {query.isPending && <LoadingState />}
-      {query.isError && <ErrorState message={apiErrorMessage(query.error)} />}
-      {query.data?.results.length === 0 && <EmptyState message="Nothing is waiting for you." />}
-      <div className="card-grid">{query.data?.results.map((a) => <ApprovalCard key={a.id} approval={a} />)}</div>
-    </section>
+    <>
+      <PageHeader title="Approvals" description="Decisions waiting on you."
+        actions={<div className="segmented"><button className={pendingOnly ? "on" : ""} onClick={() => setPendingOnly(true)}>Pending</button><button className={!pendingOnly ? "on" : ""} onClick={() => setPendingOnly(false)}>All</button></div>} />
+      {isStaff(user) && <Tabs value={tab} onChange={setTab} tabs={[
+        { value: "requests", label: "Service requests", count: requests.data?.count },
+        { value: "changes", label: "Changes", count: changes.data?.length },
+      ]} />}
+      {tab === "requests" && <>
+        {requests.isPending && <LoadingState />}
+        {requests.data?.results.length === 0 && <EmptyState title="You're all caught up" message="No requests are waiting for your approval." />}
+        <div className="tiles">
+          {requests.data?.results.map((a) => (
+            <Decision key={a.id} eyebrow={a.request_number ?? ""} title={a.subject} created={a.created_at} state={a.state} comment={a.comment}
+              decide={(s, c) => decideApproval(a.id, s, c)} />
+          ))}
+        </div>
+      </>}
+      {tab === "changes" && <>
+        {changes.isPending && <LoadingState />}
+        {changes.data?.length === 0 && <EmptyState title="No change approvals" message="Changes needing your approval as a CAB member appear here." />}
+        <div className="tiles">
+          {changes.data?.map((a) => (
+            <Decision key={a.id} eyebrow={a.change_number} title={a.change_title} link={`/changes/${a.change}`} created={a.created_at} state={a.state} comment={a.comment}
+              decide={(s, c) => postAction(`${ENDPOINTS.changeApprovals}${a.id}/decide/`, { state: s, comment: c })} />
+          ))}
+        </div>
+      </>}
+    </>
   );
 }

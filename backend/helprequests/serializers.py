@@ -1,7 +1,22 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from .models import Approval, Attachment, Category, HelpRequests, HelpRequestsComment, Services, SupportGroups
+from accounts.roles import is_staff_user
+from core.customfields import filter_for_requester
+
+from . import queues
+from .models import (
+    Approval,
+    Attachment,
+    Category,
+    FulfillmentTask,
+    HelpRequests,
+    HelpRequestsComment,
+    Queue,
+    Services,
+    SupportGroups,
+    TicketTemplate,
+)
 
 User = get_user_model()
 
@@ -17,6 +32,8 @@ class HelpRequestsReadSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", default=None, read_only=True)
     service_name = serializers.CharField(source="service.name", default=None, read_only=True)
     sla = serializers.SerializerMethodField()
+    custom_fields = serializers.SerializerMethodField()
+    open_tasks = serializers.SerializerMethodField()
 
     class Meta:
         model = HelpRequests
@@ -41,6 +58,8 @@ class HelpRequestsReadSerializer(serializers.ModelSerializer):
             "priority",
             "status",
             "request_payload",
+            "custom_fields",
+            "open_tasks",
             "resolution_code",
             "resolution_body",
             "first_response_time",
@@ -51,6 +70,18 @@ class HelpRequestsReadSerializer(serializers.ModelSerializer):
             "sla",
         )
         read_only_fields = fields
+
+    def get_custom_fields(self, obj):
+        request = self.context.get("request")
+        if request is not None and not is_staff_user(request.user):
+            return filter_for_requester(obj.custom_fields)
+        return obj.custom_fields
+
+    def get_open_tasks(self, obj):
+        annotated = getattr(obj, "open_task_count", None)
+        if annotated is not None:
+            return annotated
+        return obj.tasks.filter(status__in=FulfillmentTask.OPEN_STATUSES).count()
 
     def get_requester_name(self, obj):
         return _name(obj.requester)
@@ -74,11 +105,13 @@ class HelpRequestsReadSerializer(serializers.ModelSerializer):
 
 
 class HelpRequestsCreateSerializer(serializers.ModelSerializer):
-    description = serializers.CharField(required=True, allow_blank=False)
+    description = serializers.CharField(required=True, allow_blank=False, max_length=20000)
+    custom_fields = serializers.DictField(required=False, default=dict)
+    template = serializers.PrimaryKeyRelatedField(queryset=TicketTemplate.objects.filter(active=True), required=False, allow_null=True)
 
     class Meta:
         model = HelpRequests
-        fields = ["request_type", "subject", "description", "category", "service", "impact", "urgency"]
+        fields = ["request_type", "subject", "description", "category", "service", "impact", "urgency", "custom_fields", "template"]
 
     def validate(self, attrs):
         for field in ("category", "service"):
@@ -89,13 +122,18 @@ class HelpRequestsCreateSerializer(serializers.ModelSerializer):
 
 
 class RequesterHelpRequestsUpdateSerializer(serializers.ModelSerializer):
+    description = serializers.CharField(required=False, max_length=20000)
+    custom_fields = serializers.DictField(required=False)
+
     class Meta:
         model = HelpRequests
-        fields = ["subject", "description", "category", "service"]
+        fields = ["subject", "description", "category", "service", "custom_fields"]
 
 
 class TechnicianHelpRequestsUpdateSerializer(serializers.ModelSerializer):
     technician = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(is_active=True), allow_null=True, required=False)
+    description = serializers.CharField(required=False, allow_blank=True, max_length=20000)
+    custom_fields = serializers.DictField(required=False)
 
     class Meta:
         model = HelpRequests
@@ -108,6 +146,7 @@ class TechnicianHelpRequestsUpdateSerializer(serializers.ModelSerializer):
             "assignment_group",
             "impact",
             "urgency",
+            "custom_fields",
         ]
 
 
@@ -115,11 +154,12 @@ class TransitionSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=HelpRequests.RequestStatus.choices)
     reason = serializers.CharField(required=False, allow_blank=True, default="")
     resolution_code = serializers.CharField(required=False, allow_blank=True, max_length=60)
-    resolution_body = serializers.CharField(required=False, allow_blank=True)
+    resolution_body = serializers.CharField(required=False, allow_blank=True, max_length=20000)
 
 
 class CommentSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
+    body = serializers.CharField(max_length=20000)
 
     class Meta:
         model = HelpRequestsComment
@@ -190,3 +230,79 @@ class UserLookupSerializer(serializers.ModelSerializer):
 
     def get_name(self, obj):
         return _name(obj)
+
+
+class FulfillmentTaskSerializer(serializers.ModelSerializer):
+    assignee = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(is_active=True), allow_null=True, required=False)
+    assignee_name = serializers.SerializerMethodField()
+    assignment_group_name = serializers.CharField(source="assignment_group.name", default=None, read_only=True)
+
+    class Meta:
+        model = FulfillmentTask
+        fields = ["id", "title", "description", "assignment_group", "assignment_group_name", "assignee",
+                  "assignee_name", "status", "position", "created_at", "completed_at"]
+        read_only_fields = ["id", "created_at", "completed_at"]
+
+    def get_assignee_name(self, obj):
+        return _name(obj.assignee)
+
+    def validate_assignee(self, value):
+        if value is not None and not is_staff_user(value):
+            raise serializers.ValidationError("Only staff can be assigned tasks.")
+        return value
+
+
+class TicketTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TicketTemplate
+        fields = ["id", "name", "help_text", "request_type", "subject", "description", "category", "service",
+                  "assignment_group", "impact", "urgency", "available_to_requesters", "active"]
+
+
+class QueueSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Queue
+        fields = ["id", "name", "description", "filters", "ordering", "visible_to_roles", "position", "active"]
+
+    def validate_filters(self, value):
+        try:
+            return queues.validate_filters(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
+
+    def validate_visible_to_roles(self, value):
+        try:
+            return queues.validate_roles(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
+
+
+class SupportGroupAdminSerializer(serializers.ModelSerializer):
+    members = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(is_active=True), many=True, required=False)
+    managers = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(is_active=True), many=True, required=False)
+
+    class Meta:
+        model = SupportGroups
+        fields = ["id", "name", "active", "members", "managers"]
+
+
+class CategoryAdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ["id", "name", "parent", "active"]
+
+    def validate_parent(self, value):
+        node = value
+        while node is not None:
+            if self.instance is not None and node.pk == self.instance.pk:
+                raise serializers.ValidationError("A category cannot be its own ancestor.")
+            node = node.parent
+        return value
+
+
+class ServiceAdminSerializer(serializers.ModelSerializer):
+    owner_group = serializers.PrimaryKeyRelatedField(source="managers", queryset=SupportGroups.objects.all(), allow_null=True, required=False)
+
+    class Meta:
+        model = Services
+        fields = ["id", "name", "owner_group", "active"]

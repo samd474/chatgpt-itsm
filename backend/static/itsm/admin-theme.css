@@ -1,0 +1,100 @@
+/* Aligns Django admin with the React app's design tokens (frontend/src/styles.css). */
+:root, html[data-theme="light"] {
+  --primary: #4f46e5;
+  --secondary: #18181b;
+  --accent: #a5b4fc;
+  --primary-fg: #ffffff;
+  --body-fg: #18181b;
+  --body-bg: #fafafa;
+  --body-quiet-color: #52525b;
+  --body-loud-color: #18181b;
+  --header-color: #52525b;
+  --header-branding-color: #18181b;
+  --header-bg: #ffffff;
+  --header-link-color: #52525b;
+  --breadcrumbs-fg: #71717a;
+  --breadcrumbs-link-fg: #4338ca;
+  --breadcrumbs-bg: #fafafa;
+  --link-fg: #4338ca;
+  --link-hover-color: #3730a3;
+  --link-selected-fg: #4338ca;
+  --hairline-color: #e4e4e7;
+  --border-color: #e4e4e7;
+  --darkened-bg: #f4f4f5;
+  --selected-bg: #eef2ff;
+  --selected-row: #eef2ff;
+  --button-fg: #ffffff;
+  --button-bg: #4f46e5;
+  --button-hover-bg: #4338ca;
+  --default-button-bg: #4f46e5;
+  --default-button-hover-bg: #4338ca;
+  --close-button-bg: #71717a;
+  --close-button-hover-bg: #52525b;
+  --delete-button-bg: #dc2626;
+  --delete-button-hover-bg: #b91c1c;
+  --object-tools-bg: #f4f4f5;
+  --object-tools-fg: #18181b;
+  --object-tools-hover-bg: #e4e4e7;
+  --font-family-primary: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary: #818cf8;
+    --secondary: #fafafa;
+    --body-fg: #fafafa;
+    --body-bg: #09090b;
+    --body-quiet-color: #a1a1aa;
+    --body-loud-color: #fafafa;
+    --header-bg: #111113;
+    --header-color: #a1a1aa;
+    --header-branding-color: #fafafa;
+    --header-link-color: #a1a1aa;
+    --breadcrumbs-bg: #09090b;
+    --breadcrumbs-link-fg: #a5b4fc;
+    --link-fg: #a5b4fc;
+    --hairline-color: #27272a;
+    --border-color: #27272a;
+    --darkened-bg: #18181b;
+    --selected-bg: rgba(129, 140, 248, .12);
+    --selected-row: rgba(129, 140, 248, .12);
+    --button-bg: #6366f1;
+    --default-button-bg: #6366f1;
+    --object-tools-bg: #18181b;
+    --object-tools-fg: #fafafa;
+  }
+}
+
+body { background: var(--body-bg); font-size: 14px; -webkit-font-smoothing: antialiased; }
+#header { padding: 12px 32px; min-height: 36px; border-bottom: 1px solid var(--border-color); }
+#site-name { font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+#site-name a { display: inline-flex; align-items: center; gap: 10px; color: var(--header-branding-color); }
+#site-name a::before { content: "IT"; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: var(--body-fg); color: var(--body-bg); font-size: 12px; font-weight: 700; }
+.itsm-admin-tag { font-weight: 500; color: var(--body-quiet-color); }
+#user-tools { font-size: 12px; }
+div.breadcrumbs { padding: 10px 32px; border-bottom: 1px solid var(--border-color); }
+#content { padding: 24px 32px; }
+#content h1 { font-size: 22px; font-weight: 600; letter-spacing: -.015em; }
+.module, #changelist .changelist-form-container, .inline-group {
+  border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; background: var(--body-bg);
+}
+.module h2, .module caption, .inline-group h2 {
+  background: transparent; color: var(--body-fg); font-size: 13px; font-weight: 600; text-transform: none; letter-spacing: 0;
+  border-bottom: 1px solid var(--border-color); padding: 10px 14px;
+}
+#changelist table thead th, table thead th { background: transparent; color: var(--body-quiet-color); font-weight: 500; text-transform: none; font-size: 12px; }
+.button, input[type=submit], input[type=button], .submit-row input, a.button, .object-tools a {
+  border-radius: 8px; font-weight: 500; font-size: 13px; padding: 8px 14px;
+}
+.object-tools a { border: 1px solid var(--border-color); }
+input[type=text], input[type=password], input[type=email], input[type=url], input[type=number], input[type=search],
+textarea, select, .vTextField {
+  border-radius: 8px; border: 1px solid #d4d4d8; padding: 7px 10px; background: var(--body-bg); color: var(--body-fg);
+}
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, .25); }
+#changelist-filter { border-radius: 12px; border: 1px solid var(--border-color); }
+#changelist-filter h2 { background: transparent; color: var(--body-fg); font-weight: 600; border-bottom: 1px solid var(--border-color); }
+.submit-row { border-radius: 10px; border: 1px solid var(--border-color); background: var(--darkened-bg); }
+#nav-sidebar { background: var(--body-bg); border-right: 1px solid var(--border-color); }
+.toggle-nav-sidebar { border-color: var(--border-color); background: var(--body-bg); }
+#nav-sidebar .module th a, #nav-sidebar .module caption a { font-weight: 500; }
