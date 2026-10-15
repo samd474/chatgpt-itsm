@@ -2,10 +2,9 @@
     "venvPath": ".",
     "venv": ".venv",
     "include": [
-        "config",
         "backend"
     ],
     "extraPaths": [
-        "."
+        "backend"
     ]
 }
