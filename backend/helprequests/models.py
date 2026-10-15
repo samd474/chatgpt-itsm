@@ -13,13 +13,13 @@ class PermissionGroups(models.Model):
     name = models.CharField(max_length=120, unique=True)
     members = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="permission_groups", blank=True)
     managers = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="managed_permission_groups", blank=True)
-    active = models.BooleanField
+    active = models.BooleanField(default=True)
 
 
 class Category(models.Model):
     name = models.CharField(max_length=120)
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT)
-    active = models.BooleanField()
+    active = models.BooleanField(default=True)
 
 
 class Services(models.Model):
@@ -108,7 +108,7 @@ class Attachment(models.Model):
     original_name = models.CharField(max_length=255)
     size_bytes = models.BigIntegerField()
     content_type = models.CharField(max_length=120)
-    sha256 = models.CharField(64)
+    sha256 = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
 
 

@@ -7,50 +7,54 @@ class HelpRequestsReadSerializer(serializers.ModelSerializer):
         model = HelpRequests
         fields = (
             "public_id",
-            "number",
-            "Request_type",
-            "title",
-            "description",
+            "request_number",
+            "request_type",
+            "subject",
             "requester",
-            "assigned_to",
+            "technician",
             "assignment_group",
             "category",
             "service",
             "impact",
             "urgency",
-            "priority",
             "status",
             "request_payload",
             "resolution_code",
-            "resolution_notes",
+            "resolution_body",
             "first_response_time",
-            "resolution_time",
-            "closed_timestamp",
-            "version",
-            "creation_date",
-            "last_updated",
+            "resolved_at",
+            "closed_at",
+            "created_at",
+            "updated_at",
         )
-        read_only_fields = (
-            "public_id",
-            "request_number",
-            "first_response_time",
-            "resolution_time",
-            "closed_timestamp",
-            "version",
-            "creation_date",
-            "last_updated",
-        )
+        read_only_fields = fields
 
 
 class RequesterHelpRequestsUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = HelpRequests
-        fields = ["title", "description", "category", "service", "version"]
-        extra_kwargs = {"version": {"write_only": True}}
+        fields = ["subject", "category", "service"]
+
+
+class TechnicianHelpRequestsUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HelpRequests
+        fields = [
+            "subject",
+            "category",
+            "service",
+            "technician",
+            "assignment_group",
+            "impact",
+            "urgency",
+            "status",
+            "resolution_code",
+            "resolution_body",
+        ]
 
 
 class HelpRequestsCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = HelpRequests
-        fields = ["request_type", "title", "description", "category", "service", "public_id", ]
-    
+        fields = ["public_id", "request_type", "subject", "category", "service", "impact", "urgency", "request_payload"]
+        read_only_fields = ["public_id"]
