@@ -2,6 +2,7 @@
     "venvPath": ".",
     "venv": ".venv",
     "typeCheckingMode": "standard",
+    "reportIncompatibleVariableOverride": false,
     "include": [
         "backend"
     ],

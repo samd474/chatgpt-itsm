@@ -2,6 +2,7 @@ import uuid
 
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
+from accounts.models import User
 from .access import visible_HelpRequests
 from .models import HelpRequests
 from .serializers import (
@@ -50,7 +51,8 @@ class HelpRequestsViewSet(ModelViewSet):
             return HelpRequestsCreateSerializer
 
         if self.action in {"update", "partial_update"}:
-            if self.request.user.groups.filter(
+            user = self.request.user
+            if isinstance(user, User) and user.groups.filter(
                 name__in=["Technician", "Manager", "Administrator"]
             ).exists():
                 return TechnicianHelpRequestsUpdateSerializer
