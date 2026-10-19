@@ -11,7 +11,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN DJANGO_SECRET_KEY=collectstatic-only python manage.py collectstatic --noinput
+# Build-only placeholders: collectstatic never touches the database, and RUN-line variables are
+# not kept in the image, so the runtime checks in settings.py still apply.
+RUN DJANGO_SECRET_KEY=collectstatic-only POSTGRES_PASSWORD=collectstatic-only python manage.py collectstatic --noinput
 
 RUN useradd --system --uid 10001 itsm && mkdir -p /app/media && chown itsm /app/media
 USER itsm
