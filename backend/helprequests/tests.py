@@ -169,3 +169,24 @@ def test_attachment_rules_and_authorized_download(people, client_for):
     download = f"{url}{attachment_id}/download/"
     assert requester.get(download).status_code == 200
     assert client_for(people["other"]).get(download).status_code == 404
+
+
+def test_ticket_list_query_count_does_not_grow_with_rows(people, client_for):
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from accounts.models import User
+
+    def list_queries():
+        # A fresh instance per call, as a real request would load.
+        client = client_for(User.objects.get(pk=people["tech"].pk))
+        with CaptureQueriesContext(connection) as ctx:
+            assert client.get(URL).status_code == 200
+        return len(ctx)
+
+    HelpRequests.objects.create(requester=people["requester"], subject="s", description="d", assignment_group=people["group"])
+    baseline = list_queries()
+    for n in range(5):
+        HelpRequests.objects.create(requester=people["requester"], subject=f"s{n}", description="d",
+                                    assignment_group=people["group"])
+    assert list_queries() == baseline

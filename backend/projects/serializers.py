@@ -41,9 +41,13 @@ class ProjectSerializer(serializers.ModelSerializer):
         return _name(obj.manager)
 
     def get_progress(self, obj):
-        tasks = list(obj.tasks.values_list("status", flat=True))
-        done = sum(1 for s in tasks if s == ProjectTask.Status.DONE)
-        return {"total": len(tasks), "done": done, "percent": round(100 * done / len(tasks)) if tasks else 0}
+        total = getattr(obj, "task_total", None)
+        done = getattr(obj, "task_done", None)
+        if total is None or done is None:
+            # Not annotated (e.g. a freshly created project): count directly.
+            total = obj.tasks.count()
+            done = obj.tasks.filter(status=ProjectTask.Status.DONE).count()
+        return {"total": total, "done": done, "percent": round(100 * done / total) if total else 0}
 
     def validate_key(self, value):
         value = value.upper()

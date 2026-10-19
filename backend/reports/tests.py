@@ -57,3 +57,20 @@ def test_staged_category_import(make_user, client_for):
     assert Category.objects.get(name="Laptops").parent.name == "Hardware"
     assert admin.post(f"/api/imports/{response.data['id']}/confirm/").status_code == 400
     assert AuditEvent.objects.filter(activity_type="import.applied").exists()
+
+
+@pytest.mark.django_db
+def test_service_desk_report_counts_each_ticket_once(make_user, client_for, network_team):
+    from helprequests.models import HelpRequests
+
+    manager = make_user("boss", "Manager")
+    network_team.members.add(manager, make_user("t1", "Technician"), make_user("t2", "Technician"))
+    network_team.managers.add(manager, make_user("m2", "Manager"))
+    requester = make_user("req", "Requester")
+    for n in range(2):
+        HelpRequests.objects.create(requester=requester, subject=f"s{n}", description="d", assignment_group=network_team)
+
+    data = client_for(manager).get("/api/reports/service-desk/").data
+    assert data["open_tickets"] == 2
+    assert sum(data["by_status"].values()) == 2
+    assert sum(data["by_priority"].values()) == 2

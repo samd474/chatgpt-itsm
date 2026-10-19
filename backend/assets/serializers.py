@@ -51,7 +51,8 @@ class AssetSerializer(serializers.ModelSerializer):
 
     def get_linked_tickets(self, obj):
         return [{"public_id": str(t.public_id), "request_number": t.request_number, "subject": t.subject, "status": t.status}
-                for t in obj.help_requests.all()[:20]]
+                # Slice in Python: slicing the queryset would bypass the viewset's prefetch.
+                for t in list(obj.help_requests.all())[:20]]
 
     def validate_asset_tag(self, value):
         return value.strip().upper()
