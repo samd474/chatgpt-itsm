@@ -279,7 +279,7 @@ def request_approvals(help_request, approvers, *, request=None):
 
 @transaction.atomic
 def decide_approval(approval, *, actor, state, comment="", request=None):
-    approval = Approval.objects.select_for_update().select_related("help_request").get(pk=approval.pk)
+    approval = Approval.objects.select_for_update().select_related("help_request", "approver").get(pk=approval.pk)
     if approval.approver.pk != actor.pk:
         raise PermissionDenied("Only the assigned approver can decide this approval.")
     if approval.help_request.requester_id == actor.pk:
@@ -303,8 +303,10 @@ def decide_approval(approval, *, actor, state, comment="", request=None):
                       metadata={"approval_id": approval.pk, "comment": comment})
     if state == Approval.State.REJECTED and help_request.status in ALLOWED_TRANSITIONS and \
             Status.CANCELLED in ALLOWED_TRANSITIONS[help_request.status]:
+        old_status = help_request.status
         help_request.status = Status.CANCELLED
         help_request.save(update_fields=["status", "updated_at"])
+        sla_services.on_status_change(help_request, old_status, Status.CANCELLED, actor=actor, request=request)
         write_audit_event(request, "ticket.status_changed", obj=help_request, actor=actor,
                           metadata={"reason": "Approval rejected"})
     if state == Approval.State.APPROVED:

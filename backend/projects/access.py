@@ -9,7 +9,8 @@ def visible_projects(user, qs):
     """Managers, administrators and auditors see every project; others only their own."""
     if has_role(user, MANAGER, ADMINISTRATOR, AUDITOR):
         return qs
-    return qs.filter(Q(manager=user) | Q(memberships__user=user)).distinct()
+    member_of = ProjectMember.objects.filter(user=user).values("project_id")
+    return qs.filter(Q(manager=user) | Q(pk__in=member_of))
 
 
 def can_manage(user, project):

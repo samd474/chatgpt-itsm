@@ -19,12 +19,12 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/context";
 import { hasRole, isStaff } from "../auth/roles";
 import type { User } from "../types";
-import { Avatar } from "./ui";
+import { Avatar, LoadingState } from "./ui";
 
 type Item = { to: string; label: string; icon: LucideIcon; end?: boolean; show?: (u: User) => boolean };
 type Section = { label: string; items: Item[]; show?: (u: User) => boolean };
@@ -127,7 +127,9 @@ export function Shell() {
           <button className="btn btn-ghost btn-icon" aria-label="Open menu" onClick={() => setOpen(true)}><Menu /></button>
           <span className="brand-mark">IT</span><strong>Service Desk</strong>
         </div>
-        <main className={`content${wide ? " content--wide" : ""}`}><Outlet /></main>
+        <main className={`content${wide ? " content--wide" : ""}`}>
+          <Suspense fallback={<LoadingState />}><Outlet /></Suspense>
+        </main>
       </div>
     </div>
   );

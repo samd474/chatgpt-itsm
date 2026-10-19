@@ -1,6 +1,7 @@
 from typing import Any
 
 from django.db import transaction
+from django.db.models import Count, Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
@@ -35,7 +36,10 @@ class ProjectViewSet(AuditedModelViewSet):
     http_method_names = ["get", "post", "patch", "head", "options"]
 
     def get_queryset(self):
-        qs = Project.objects.select_related("manager").prefetch_related("memberships__user")
+        qs = Project.objects.select_related("manager").prefetch_related("memberships__user").annotate(
+            task_total=Count("tasks", distinct=True),
+            task_done=Count("tasks", filter=Q(tasks__status=ProjectTask.Status.DONE), distinct=True),
+        )
         return visible_projects(self.request.user, qs)
 
     def perform_create(self, serializer):

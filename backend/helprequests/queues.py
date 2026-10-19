@@ -4,7 +4,7 @@ from django.db.models import Q
 
 from accounts.roles import ADMINISTRATOR, AUDITOR, MANAGER, REQUESTER, TECHNICIAN
 
-from .models import HelpRequests
+from .models import HelpRequests, SupportGroups
 
 ROLE_NAMES = {REQUESTER, TECHNICIAN, MANAGER, ADMINISTRATOR, AUDITOR}
 
@@ -73,7 +73,7 @@ def apply_filters(qs, filters, user):
     if "assignment_group" in f:
         qs = qs.filter(assignment_group__in=f["assignment_group"])
     if f.get("my_groups"):
-        qs = qs.filter(assignment_group__members=user)
+        qs = qs.filter(assignment_group__in=SupportGroups.objects.filter(members=user).values("pk"))
     if "category" in f:
         qs = qs.filter(category__in=f["category"])
     if "service" in f:
@@ -86,4 +86,4 @@ def apply_filters(qs, filters, user):
         qs = qs.filter(Q(sla__response_breached=True) | Q(sla__resolution_breached=True))
     elif f.get("sla") == "at_risk":
         qs = qs.filter(sla__warning_sent_at__isnull=False, sla__response_breached=False, sla__resolution_breached=False)
-    return qs.distinct()
+    return qs

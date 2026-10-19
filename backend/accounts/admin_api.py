@@ -79,6 +79,7 @@ class UserAdminSerializer(serializers.ModelSerializer):
         instance.save()
         if groups is not None:
             instance.groups.set(groups)
+            instance.__dict__.pop("_role_names_cache", None)
         if support_groups is not None:
             instance.support_groups.set(support_groups)
         return instance

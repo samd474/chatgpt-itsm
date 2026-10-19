@@ -7,13 +7,12 @@ def visible_HelpRequests(user, qs):
     if user.is_superuser or has_role(user, ADMINISTRATOR, AUDITOR):
         return qs
     if has_role(user, TECHNICIAN, MANAGER):
-        visibility_filter = (
-            Q(assignment_group__members=user)
-            | Q(assignment_group__managers=user)
-            | Q(technician=user)
-            | Q(requester=user)
-        )
-        return qs.filter(visibility_filter).distinct()
+        from .models import SupportGroups
+
+        # A subquery rather than joining members/managers: no duplicate rows, so no DISTINCT
+        # over every selected column on each list and count query.
+        my_groups = SupportGroups.objects.filter(Q(members=user) | Q(managers=user)).values("pk")
+        return qs.filter(Q(assignment_group__in=my_groups) | Q(technician=user) | Q(requester=user))
     return qs.filter(requester=user)
 
 
