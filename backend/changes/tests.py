@@ -107,3 +107,81 @@ def test_emergency_needs_single_approval_and_rejection(setup, client_for):
     client_for(setup["cab2"]).post(f"/api/changes/approvals/{approval.pk}/decide/", {"state": "rejected", "comment": "Too risky"}, format="json")
     assert ChangeRequest.objects.get(pk=normal["id"]).status == "rejected"
     assert tech.patch(f"{URL}{normal['id']}/", {"risk": "low"}, format="json").status_code == 200  # rework allowed
+
+
+@pytest.mark.django_db
+def test_conflict_count_annotation_matches_conflicts(setup):
+    from changes.services import conflict_count_subquery, conflicts
+    from helprequests.models import Services
+
+    kind = AssetType.objects.create(name="Network")
+    fw, sw, db = (Asset.objects.create(asset_tag=t, name=t, asset_type=kind) for t in ("FW", "SW", "DB"))
+    vpn, mail = Services.objects.create(name="VPN"), Services.objects.create(name="Mail")
+    t0 = timezone.now() + timedelta(days=1)
+
+    def hours(n):
+        return t0 + timedelta(hours=n)
+
+    S = ChangeRequest.Status
+    cases = [
+        # (status, start, end, service, assets)
+        (S.SCHEDULED, hours(0), hours(4), None, [fw]),
+        (S.IMPLEMENTING, hours(2), hours(6), None, [fw, sw]),   # overlaps the first on FW
+        (S.SCHEDULED, hours(3), hours(5), vpn, []),              # service only
+        (S.SCHEDULED, hours(1), hours(2), vpn, [db]),            # overlaps #3? no: ends before it starts
+        (S.APPROVED, hours(0), hours(8), vpn, [fw]),             # not an active window: counts others, isn't counted
+        (S.SCHEDULED, hours(4), hours(9), None, [fw]),           # touches #1 at its end only
+        (S.SCHEDULED, hours(0), hours(9), mail, [sw, db]),       # overlaps #2 on SW and #4 on DB
+        (S.DRAFT, None, None, vpn, [fw]),                        # no window
+        (S.SCHEDULED, hours(0), hours(9), None, []),             # nothing shared
+    ]
+    for i, (status, start, end, service, assets) in enumerate(cases):
+        change = ChangeRequest.objects.create(number=f"T-{i}", title="c", description="d", status=status, planned_start=start,
+                                              planned_end=end, service=service, requested_by=setup["tech"])
+        change.assets.set(assets)
+
+    annotated = dict(ChangeRequest.objects.annotate(n=conflict_count_subquery()).values_list("pk", "n"))
+    assert annotated == {c.pk: conflicts(c).count() for c in ChangeRequest.objects.all()}
+    assert any(annotated.values())
+
+
+@pytest.mark.django_db
+def test_change_list_query_count_does_not_grow_with_rows(setup, client_for):
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from accounts.models import User
+
+    def list_queries():
+        client = client_for(User.objects.get(pk=setup["tech"].pk))
+        with CaptureQueriesContext(connection) as ctx:
+            assert client.get(URL).status_code == 200
+        return len(ctx)
+
+    start = timezone.now() + timedelta(days=1)
+
+    def add():
+        ChangeRequest.objects.create(number=f"T-{ChangeRequest.objects.count()}", title="c", description="d", status=ChangeRequest.Status.SCHEDULED,
+                                     planned_start=start, planned_end=start + timedelta(hours=2),
+                                     requested_by=setup["tech"])
+
+    add()
+    baseline = list_queries()
+    for _ in range(5):
+        add()
+    assert list_queries() == baseline
+
+
+@pytest.mark.django_db
+def test_patch_response_recounts_conflicts(setup, client_for):
+    asset = Asset.objects.create(asset_tag="FW1", name="Firewall", asset_type=AssetType.objects.create(name="Network"))
+    start = timezone.now() + timedelta(days=1)
+    window = {"planned_start": start.isoformat(), "planned_end": (start + timedelta(hours=2)).isoformat()}
+    other = ChangeRequest.objects.create(number="T-1", title="o", description="d", status=ChangeRequest.Status.SCHEDULED,
+                                         requested_by=setup["mgr"], planned_start=start,
+                                         planned_end=start + timedelta(hours=2))
+    other.assets.set([asset])
+    tech = client_for(setup["tech"])
+    change = create(tech, **window).data
+    assert change["conflict_count"] == 0
+    assert tech.patch(f"{URL}{change['id']}/", {"assets": [asset.pk]}, format="json").data["conflict_count"] == 1

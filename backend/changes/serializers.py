@@ -55,9 +55,18 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
         return _name(obj.implementer)
 
     def get_conflict_count(self, obj):
+        annotated = getattr(obj, "conflict_total", None)
+        if annotated is not None:
+            return annotated
         from .services import conflicts
 
         return conflicts(obj).count() if obj.pk else 0
+
+    def update(self, instance, validated_data):
+        instance = super().update(instance, validated_data)
+        # The list annotation predates this save; the window or assets may have changed.
+        instance.__dict__.pop("conflict_total", None)
+        return instance
 
     def validate_implementer(self, value):
         if value is not None and not is_staff_user(value):

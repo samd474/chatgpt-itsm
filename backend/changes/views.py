@@ -35,7 +35,7 @@ class ChangeRequestViewSet(AuditedModelViewSet):
     def get_queryset(self):
         return ChangeRequest.objects.select_related("requested_by", "implementer", "service").prefetch_related(
             "approvals__approver", "assets", "help_requests",
-        )
+        ).annotate(conflict_total=services.conflict_count_subquery())
 
     def _check_tickets(self, serializer):
         tickets = serializer.validated_data.get("help_requests") or []

@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Exists, F, Func, OuterRef, Q, Subquery
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
@@ -77,6 +77,24 @@ def conflicts(change):
     if change.service_id:
         shared |= Q(service=change.service_id)
     return overlap.filter(shared).distinct()
+
+
+def conflict_count_subquery():
+    """conflicts(change).count() as a correlated subquery, so list pages annotate it in one query.
+
+    Mirrors conflicts(): a NULL window or service compares false in SQL, matching its early exits.
+    Kept in step with conflicts() by changes.tests.test_conflict_count_annotation_matches_conflicts.
+    """
+    through = ChangeRequest.assets.through
+    shares_asset = Exists(through.objects.filter(
+        changerequest_id=OuterRef("pk"), asset__changes=OuterRef(OuterRef("pk")),
+    ))
+    others = ChangeRequest.objects.filter(
+        status__in=ChangeRequest.ACTIVE_WINDOW_STATUSES,
+        planned_start__lt=OuterRef("planned_end"),
+        planned_end__gt=OuterRef("planned_start"),
+    ).exclude(pk=OuterRef("pk")).filter(Q(shares_asset) | Q(service=OuterRef("service")))
+    return Subquery(others.order_by().annotate(n=Func(F("pk"), function="COUNT")).values("n"))
 
 
 @transaction.atomic
