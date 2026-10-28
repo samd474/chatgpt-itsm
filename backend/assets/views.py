@@ -1,4 +1,5 @@
 from django.db import IntegrityError
+from django.db.models import Prefetch
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -60,8 +61,9 @@ class AssetViewSet(AuditedModelViewSet):
     ordering_fields = ["asset_tag", "name", "updated_at", "warranty_expires"]
 
     def get_queryset(self):
-        qs = Asset.objects.select_related("asset_type", "location", "owner", "assigned_to").prefetch_related("help_requests")
         user = self.request.user
+        linked = Prefetch("help_requests", queryset=visible_HelpRequests(user, HelpRequests.objects.all()))
+        qs = Asset.objects.select_related("asset_type", "location", "owner", "assigned_to").prefetch_related(linked)
         if is_staff_user(user) or has_role(user, AUDITOR):
             return qs
         return qs.filter(assigned_to=user)

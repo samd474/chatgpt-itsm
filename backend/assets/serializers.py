@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from core.customfields import clean_custom_fields
+from helprequests.access import visible_HelpRequests
 from helprequests.models import HelpRequests
 
 from .models import Asset, AssetRelationship, AssetType, Location
@@ -50,9 +51,16 @@ class AssetSerializer(serializers.ModelSerializer):
         return _name(obj.assigned_to)
 
     def get_linked_tickets(self, obj):
+        # Only tickets the viewer can already see: an asset must not reveal another team's ticket subjects.
+        if "help_requests" in getattr(obj, "_prefetched_objects_cache", {}):
+            # The viewset prefetches through visible_HelpRequests; slice in Python to keep using it.
+            tickets = list(obj.help_requests.all())[:20]
+        else:
+            # e.g. after link-ticket, where add()/remove() clear the prefetch.
+            request = self.context.get("request")
+            tickets = visible_HelpRequests(request.user, obj.help_requests.all())[:20] if request else []
         return [{"public_id": str(t.public_id), "request_number": t.request_number, "subject": t.subject, "status": t.status}
-                # Slice in Python: slicing the queryset would bypass the viewset's prefetch.
-                for t in list(obj.help_requests.all())[:20]]
+                for t in tickets]
 
     def validate_asset_tag(self, value):
         return value.strip().upper()
