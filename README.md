@@ -45,8 +45,9 @@ session and CSRF cookies behave the same way they will behind NGINX in productio
 | — | `contracts` | Vendors, contracts, renewal reminders (financial fields hidden from technicians) |
 | — | `projects` | Projects, members, milestones, tasks with dependencies |
 | — | `changes` | Change requests, CAB approvals, scheduling, conflict detection, calendar |
+| — | `solutions` | Knowledge base: articles (draft → published → retired, public or staff-only), search, links to tickets |
 
-`rules` and `solutions` are empty placeholders for later phases.
+`rules` is an empty placeholder for a later phase.
 
 ## API
 

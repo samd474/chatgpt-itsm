@@ -236,6 +236,31 @@ class HelpRequestsViewSet(
         tasks = help_request.tasks.select_related("assignee", "assignment_group")
         return Response(FulfillmentTaskSerializer(tasks, many=True).data)
 
+    @action(detail=True, methods=["get", "post"])
+    def articles(self, request, public_id=None):
+        """Knowledge-base articles linked to this ticket, limited to the ones the viewer may read."""
+        from solutions.access import visible_articles
+        from solutions.models import Article
+        from solutions.serializers import ArticleSerializer, TicketArticleLinkSerializer
+
+        help_request = self.get_object()
+        if request.method == "POST":
+            if not works_ticket(request.user, help_request):
+                raise PermissionDenied("Only staff working this ticket can link articles.")
+            serializer = TicketArticleLinkSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            article = serializer.validated_data["article"]
+            if serializer.validated_data["unlink"]:
+                help_request.articles.remove(article)
+            else:
+                if article.status != Article.Status.PUBLISHED:
+                    return Response({"article": ["Only published articles can be linked."]}, status=status.HTTP_400_BAD_REQUEST)
+                help_request.articles.add(article)
+            event = "ticket.article_unlinked" if serializer.validated_data["unlink"] else "ticket.article_linked"
+            write_audit_event(request, event, obj=help_request, metadata={"article_id": article.pk, "number": article.number})
+        linked = visible_articles(request.user, help_request.articles.select_related("category", "service", "author"))
+        return Response(ArticleSerializer(linked, many=True).data)
+
     @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated, CanExportHelpRequests],
             throttle_classes=[ExportThrottle], url_path="export")
     def export(self, request):
