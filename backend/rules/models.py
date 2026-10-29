@@ -2,10 +2,16 @@ from django.db import models
 
 
 class TicketRule(models.Model):
-    """Automation that runs once when a ticket is created. Rules run in position order; every
-    matching rule applies its actions (later ones win) unless a match has stop_processing set."""
+    """Automation that runs when a ticket is created and/or updated. Rules run in position order;
+    every matching rule applies its actions (later ones win) unless a match has stop_processing set."""
+
+    class RunsOn(models.TextChoices):
+        CREATED = "created", "When a ticket is created"
+        UPDATED = "updated", "When a ticket is updated"
+        BOTH = "both", "Both"
 
     name = models.CharField(max_length=120)
+    runs_on = models.CharField(max_length=10, choices=RunsOn.choices, default=RunsOn.CREATED)
     description = models.TextField(blank=True)
     position = models.PositiveIntegerField(default=0)
     active = models.BooleanField(default=True)

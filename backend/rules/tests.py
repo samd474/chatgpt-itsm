@@ -124,3 +124,109 @@ class TestEngine:
         event = NotificationEvent.objects.get(event_type="ticket.rule_matched")
         assert event.payload["rule"] == "VPN to network"
         assert set(NotificationDelivery.objects.filter(event=event).values_list("recipient", flat=True)) == {setup["member"].email}
+
+
+class TestUpdateRules:
+    def ticket_in_network(self, client_for, setup, **data):
+        ticket = raise_ticket(client_for, setup["requester"], **data)
+        HelpRequests.objects.filter(pk=ticket.pk).update(assignment_group=setup["network"])
+        return HelpRequests.objects.get(pk=ticket.pk)
+
+    def patch(self, client, ticket, **changes):
+        response = client.patch(f"/api/help-requests/{ticket.public_id}/", changes, format="json")
+        assert response.status_code == 200, response.data
+        return HelpRequests.objects.get(pk=ticket.pk)
+
+    def applied(self, event="updated"):
+        return [e.metadata["rule"] for e in AuditEvent.objects.filter(activity_type="rule.applied").order_by("pk")
+                if e.metadata.get("event") == event]
+
+    @pytest.mark.parametrize("body,field", [
+        ({"runs_on": "updated", "conditions": {}}, "conditions"),  # would fire on every edit
+        ({"runs_on": "created", "conditions": {"changed": ["status"]}}, "conditions"),
+        ({"runs_on": "updated", "conditions": {"changed": ["subject"]}}, "conditions"),
+        ({"runs_on": "both", "conditions": {"status": ["done"]}}, "conditions"),
+    ])
+    def test_update_rules_are_validated(self, setup, client_for, body, field):
+        response = client_for(setup["admin"]).post(URL, {"name": "x", "actions": {"set_impact": 1}, **body}, format="json")
+        assert response.status_code == 400 and field in response.data
+
+    def test_status_change_triggers_a_rule(self, setup, client_for):
+        rule("resolved -> notify", runs_on="updated", conditions={"changed": ["status"], "status": ["resolved"]},
+             actions={"notify_group": setup["network"].pk})
+        ticket = self.ticket_in_network(client_for, setup)
+        member = client_for(setup["member"])
+        member.post(f"/api/help-requests/{ticket.public_id}/transition/", {"status": "in_progress"}, format="json")
+        assert not NotificationEvent.objects.filter(event_type="ticket.rule_matched").exists()  # status isn't resolved yet
+        response = member.post(f"/api/help-requests/{ticket.public_id}/transition/",
+                               {"status": "resolved", "resolution_body": "Replaced the cable."}, format="json")
+        assert response.status_code == 200, response.data
+        assert NotificationEvent.objects.filter(event_type="ticket.rule_matched").count() == 1
+
+    def test_edits_to_unwatched_fields_do_not_trigger(self, setup, client_for):
+        rule(runs_on="updated", conditions={"changed": ["category"]}, actions={"set_impact": 1})
+        ticket = self.ticket_in_network(client_for, setup)
+        assert self.patch(client_for(setup["member"]), ticket, subject="New subject").impact == 3
+        assert self.applied() == []
+
+    def test_category_change_reroutes_reprioritises_and_notifies(self, setup, client_for):
+        call_command("seed_slas", verbosity=0)
+        vpn = Category.objects.create(name="VPN")
+        rule("vpn -> network", runs_on="updated", conditions={"changed": ["category"], "category": [vpn.pk]},
+             actions={"set_assignment_group": setup["network"].pk, "set_impact": 1, "set_urgency": 1})
+        ticket = raise_ticket(client_for, setup["requester"])
+        ticket = self.patch(client_for(setup["admin"]), ticket, category=vpn.pk)
+        assert (ticket.assignment_group, ticket.priority) == (setup["network"], 1)
+        assert ticket.sla.policy.priority == 1
+        assigned = NotificationEvent.objects.filter(event_type="ticket.assigned").last()
+        assert set(NotificationDelivery.objects.filter(event=assigned).values_list("recipient", flat=True)) == {setup["member"].email}
+
+    def test_rules_only_run_for_their_event(self, setup, client_for):
+        rule("on create", 1, runs_on="created", actions={"set_impact": 1})
+        rule("on update", 2, runs_on="updated", conditions={"changed": ["urgency"]}, actions={"set_impact": 2})
+        ticket = raise_ticket(client_for, setup["requester"])
+        assert ticket.impact == 1 and self.applied("created") == ["on create"]
+        HelpRequests.objects.filter(pk=ticket.pk).update(assignment_group=setup["network"])  # so the member works it
+        ticket = self.patch(client_for(setup["member"]), ticket, urgency=2)
+        assert ticket.impact == 2 and self.applied("updated") == ["on update"]
+
+    def test_a_rules_own_changes_do_not_trigger_more_rules(self, setup, client_for):
+        vpn = Category.objects.create(name="VPN")
+        rule("route sets category", 1, runs_on="updated", conditions={"changed": ["assignment_group"]},
+             actions={"set_category": vpn.pk})
+        rule("category watcher", 2, runs_on="updated", conditions={"changed": ["category"]}, actions={"set_impact": 1})
+        ticket = raise_ticket(client_for, setup["requester"])
+        ticket = self.patch(client_for(setup["admin"]), ticket, assignment_group=setup["network"].pk)
+        assert ticket.category == vpn and ticket.impact == 3
+        assert self.applied() == ["route sets category"]
+
+
+class TestPreview:
+    URL = f"{URL}preview/"
+
+    def test_shows_matches_and_changes_without_changing_anything(self, setup, client_for):
+        for subject in ("VPN down", "VPN slow", "Printer jam"):
+            raise_ticket(client_for, setup["requester"], subject=subject, description="Please help.")
+        # A live rule that would change every ticket: previewing must not run it either.
+        rule("live", actions={"set_urgency": 1})
+        body = {"conditions": {"keywords": ["vpn"]}, "actions": {"set_assignment_group": setup["network"].pk, "set_impact": 3}}
+        result = client_for(setup["admin"]).post(self.URL, body, format="json").data
+        assert (result["scanned"], result["matched"]) == (3, 2)
+        assert {t["subject"] for t in result["tickets"]} == {"VPN down", "VPN slow"}
+        # Impact is already 3, so only the routing would change.
+        assert result["tickets"][0]["changes"] == [{"field": "assignment_group", "from": None, "to": "Network"}]
+        assert not HelpRequests.objects.filter(assignment_group__isnull=False).exists()
+        assert not HelpRequests.objects.filter(urgency=1).exists()
+        assert not AuditEvent.objects.filter(activity_type="rule.applied").exists()
+
+    def test_changed_conditions_are_ignored_and_reported(self, setup, client_for):
+        raise_ticket(client_for, setup["requester"])
+        body = {"conditions": {"changed": ["status"]}, "actions": {"set_impact": 1}}
+        result = client_for(setup["admin"]).post(self.URL, body, format="json").data
+        assert result["matched"] == 1 and result["ignored_conditions"] == ["changed"]
+
+    def test_validated_and_administrators_only(self, setup, client_for):
+        body = {"conditions": {"keywords": ["vpn"]}}
+        assert client_for(setup["admin"]).post(self.URL, {"conditions": {"bogus": 1}}, format="json").status_code == 400
+        for who in ("tech", "auditor"):
+            assert client_for(setup[who]).post(self.URL, body, format="json").status_code == 403

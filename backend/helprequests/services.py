@@ -54,6 +54,29 @@ def snapshot(help_request):
     return {field: getattr(help_request, field) for field in SNAPSHOT_FIELDS}
 
 
+# Snapshot keys -> the field names update rules use in their "changed" condition.
+_RULE_FIELDS = {
+    "status": "status", "impact": "impact", "urgency": "urgency", "priority": "priority",
+    "technician_id": "technician", "assignment_group_id": "assignment_group",
+    "category_id": "category", "service_id": "service",
+}
+
+
+def _apply_update_rules(help_request, before, *, request=None):
+    """Run update rules for what this update changed, then follow up on what the rules themselves changed."""
+    after = snapshot(help_request)
+    changed = {name for key, name in _RULE_FIELDS.items() if before[key] != after[key]}
+    if not changed:
+        return
+    from rules.engine import apply_rules
+
+    rule_changes = apply_rules(help_request, event="updated", changed=changed, request=request)
+    if "priority" in rule_changes:
+        sla_services.reapply_sla(help_request)
+    if "assignment_group" in rule_changes:
+        notify("ticket.assigned", help_request, recipients=_group_recipients(help_request))
+
+
 def _group_recipients(help_request):
     if help_request.technician_id:
         return [help_request.technician]
@@ -84,7 +107,7 @@ def create_help_request(*, requester, request=None, **data):
     # the assignment notification goes out.
     from rules.engine import apply_rules
 
-    apply_rules(help_request, request=request)
+    apply_rules(help_request, event="created", request=request)
     sla_services.attach_sla(help_request)
     write_audit_event(request, "ticket.created", obj=help_request, actor=requester, before={}, after=snapshot(help_request))
     notify("ticket.created", help_request, recipients=[requester])
@@ -127,6 +150,7 @@ def update_help_request(help_request, *, actor, changes, request=None):
                           after={k: after[k] for k in ("technician_id", "assignment_group_id")})
         notify("ticket.assigned", help_request, recipients=_group_recipients(help_request))
     write_audit_event(request, "ticket.updated", obj=help_request, actor=actor, before=before, after=after)
+    _apply_update_rules(help_request, before, request=request)
     return help_request
 
 
@@ -179,6 +203,7 @@ def transition_help_request(help_request, *, new_status, actor, reason="", resol
                       metadata={"reason": reason} if reason else None)
     if new_status == Status.RESOLVED:
         notify("ticket.resolved", help_request, recipients=[help_request.requester])
+    _apply_update_rules(help_request, before, request=request)
     return help_request
 
 
@@ -309,11 +334,13 @@ def decide_approval(approval, *, actor, state, comment="", request=None):
     if state == Approval.State.REJECTED and help_request.status in ALLOWED_TRANSITIONS and \
             Status.CANCELLED in ALLOWED_TRANSITIONS[help_request.status]:
         old_status = help_request.status
+        before = snapshot(help_request)
         help_request.status = Status.CANCELLED
         help_request.save(update_fields=["status", "updated_at"])
         sla_services.on_status_change(help_request, old_status, Status.CANCELLED, actor=actor, request=request)
         write_audit_event(request, "ticket.status_changed", obj=help_request, actor=actor,
                           metadata={"reason": "Approval rejected"})
+        _apply_update_rules(help_request, before, request=request)
     if state == Approval.State.APPROVED:
         from catalog.models import CatalogItem
 
