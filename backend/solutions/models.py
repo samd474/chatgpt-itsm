@@ -38,3 +38,16 @@ class Article(models.Model):
 
     def __str__(self):
         return f"{self.number} {self.title}" if self.number else self.title
+
+
+class ArticleFeedback(models.Model):
+    """One "was this helpful?" vote per person per article; voting again changes it."""
+
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name="feedback")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="article_feedback")
+    helpful = models.BooleanField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["article", "user"], name="one_feedback_per_user_per_article")]
