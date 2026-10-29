@@ -39,11 +39,12 @@ jobs:
           python-version: "3.13"
       - run: sudo apt-get update && sudo apt-get install -y libmagic1
       - run: pip install -r requirements-dev.txt pip-audit pip-tools==7.6.2
-      - name: Lock file matches requirements.in
-        # Keeps existing pins; fails only if requirements.in changed without re-running pip-compile.
+      - name: Lock files match their .in files
+        # Keeps existing pins; fails only if a .in file changed without re-running pip-compile.
         run: |
           pip-compile --quiet --strip-extras --no-emit-index-url --output-file requirements.txt requirements.in
-          git diff --exit-code requirements.txt
+          pip-compile --quiet --strip-extras --no-emit-index-url --output-file requirements-dev.txt requirements-dev.in
+          git diff --exit-code requirements.txt requirements-dev.txt
       - name: Dependency vulnerability audit
         run: pip-audit -r requirements.txt
       - run: python manage.py check

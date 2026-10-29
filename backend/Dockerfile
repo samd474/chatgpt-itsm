@@ -9,8 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libpq-dev libmagic1 curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt /app/requirements.txt
+# The development image also gets the test and type-check tools; Dockerfile.prod installs requirements.txt only.
+COPY requirements-dev.txt /app/requirements-dev.txt
 
-RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements-dev.txt
 
 COPY . /app

@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from django.db.models import Prefetch
 from django.utils.dateparse import parse_datetime
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
@@ -33,8 +34,9 @@ class ChangeRequestViewSet(AuditedModelViewSet):
     ordering_fields = ["created_at", "planned_start", "updated_at"]
 
     def get_queryset(self):
+        linked = Prefetch("help_requests", queryset=visible_HelpRequests(self.request.user, HelpRequests.objects.all()))
         return ChangeRequest.objects.select_related("requested_by", "implementer", "service").prefetch_related(
-            "approvals__approver", "assets", "help_requests",
+            "approvals__approver", "assets", linked,
         ).annotate(conflict_total=services.conflict_count_subquery())
 
     def _check_tickets(self, serializer):

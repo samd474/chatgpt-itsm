@@ -1,0 +1,10 @@
+# Development and CI: the production dependencies plus test and type-check tools.
+# Constrained to the production lock so both environments run the same versions.
+-c requirements.txt
+-r requirements.in
+pytest
+pytest-django
+factory-boy
+basedpyright==1.40.2
+django-stubs==6.1.2
+djangorestframework-stubs==3.18.1

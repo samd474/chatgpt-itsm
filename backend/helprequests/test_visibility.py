@@ -229,3 +229,52 @@ def test_asset_link_response_only_shows_visible_tickets(world, as_):
                                   {"help_request": str(world["tickets"]["T3"].public_id)}, format="json")
     assert response.status_code == 200, response.data
     assert {t["subject"] for t in response.data["linked_tickets"]} == {"T1", "T3"}
+
+
+def _change_linked_to(world, *names):
+    from changes.models import ChangeRequest
+
+    change = ChangeRequest.objects.create(number="CHG-T", title="Patch", description="d",
+                                          requested_by=world["people"]["member"])
+    change.help_requests.set([world["tickets"][n] for n in names])
+    return change
+
+
+def _public_ids(world, names):
+    return {str(world["tickets"][n].public_id) for n in names}
+
+
+@pytest.mark.parametrize("who", ["member", "group_manager", "assigned_tech", "outsider", "staff_requester", "auditor", "admin"])
+def test_changes_only_show_visible_linked_tickets(world, as_, who):
+    change = _change_linked_to(world, *TICKETS)
+    client = as_(who)
+    assert set(client.get(f"/api/changes/items/{change.pk}/").json()["help_requests"]) == _public_ids(world, VISIBLE[who])
+    assert set(client.get("/api/changes/items/").json()["results"][0]["help_requests"]) == _public_ids(world, VISIBLE[who])
+
+
+@pytest.mark.parametrize("submitted,shown", [(["T1", "T3"], {"T1", "T3"}), ([], set())])
+def test_editing_a_change_keeps_links_the_editor_cannot_see(world, as_, submitted, shown):
+    change = _change_linked_to(world, "T1", "T2")  # the member can't see T2
+    response = as_("member").patch(f"/api/changes/items/{change.pk}/",
+                                   {"help_requests": sorted(_public_ids(world, submitted))}, format="json")
+    assert response.status_code == 200, response.data
+    assert set(response.json()["help_requests"]) == _public_ids(world, shown)
+    stored = {t.subject for t in change.help_requests.all()}
+    assert stored == set(submitted) | {"T2"}
+
+
+def test_change_serializer_keeps_hidden_links_without_a_prefetch(world, rf):
+    """The guard itself, without the viewset's scoped prefetch (which happens to protect API edits too)."""
+    from changes.models import ChangeRequest
+    from changes.serializers import ChangeRequestSerializer
+
+    change = _change_linked_to(world, "T1", "T2")
+    request = rf.patch("/")
+    request.user = world["people"]["member"]
+    serializer = ChangeRequestSerializer(ChangeRequest.objects.get(pk=change.pk), partial=True, context={"request": request},
+                                         data={"help_requests": sorted(_public_ids(world, ["T3"]))})
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    assert {t.subject for t in change.help_requests.all()} == {"T2", "T3"}
+    # The response after the save skips the prefetch too, and still hides T2.
+    assert {str(public_id) for public_id in serializer.data["help_requests"]} == _public_ids(world, ["T3"])

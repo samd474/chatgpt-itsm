@@ -42,40 +42,22 @@ django-filter==26.2
     # via -r requirements.in
 djangorestframework==3.18.3
     # via -r requirements.in
-factory-boy==3.3.3
-    # via -r requirements.in
-faker==40.44.0
-    # via factory-boy
 gunicorn==26.2.0
     # via -r requirements.in
 idna==3.20
     # via requests
-iniconfig==2.3.1
-    # via pytest
 kombu==5.6.2
     # via celery
 packaging==26.3
-    # via
-    #   kombu
-    #   pytest
+    # via kombu
 pillow==13.0.0
     # via -r requirements.in
-pluggy==1.7.0
-    # via pytest
 prompt-toolkit==3.0.53
     # via click-repl
 psycopg==3.3.6
     # via -r requirements.in
 psycopg-binary==3.3.6
     # via psycopg
-pygments==2.21.0
-    # via pytest
-pytest==9.2.0
-    # via
-    #   -r requirements.in
-    #   pytest-django
-pytest-django==4.14.0
-    # via -r requirements.in
 python-dateutil==3.0.0
     # via celery
 python-dotenv==1.2.4

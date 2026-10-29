@@ -97,17 +97,24 @@ Type-check the backend with `.venv/bin/basedpyright` from the repository root.
 
 ### Backend dependencies
 
-`backend/requirements.in` lists the direct dependencies; `backend/requirements.txt` is the lock file
-(every package pinned) that Docker images and CI install. After editing `requirements.in`, or to pick up
-newer versions, regenerate the lock with pip-tools from `backend/`:
+Each `.in` file lists direct dependencies and compiles to a fully pinned `.txt` lock:
+
+- `backend/requirements.in` → `requirements.txt`: what the app needs to run. The production image installs
+  only this.
+- `backend/requirements-dev.in` → `requirements-dev.txt`: the above plus test and type-check tools, at the
+  same versions. The development image, CI and local tooling install this.
+
+After editing a `.in` file, or to pick up newer versions, regenerate both locks with pip-tools from
+`backend/`, production first since the dev lock is constrained by it:
 
 ```bash
 pip install pip-tools==7.6.2
-pip-compile --strip-extras --no-emit-index-url --output-file requirements.txt requirements.in            # after editing .in
-pip-compile --strip-extras --no-emit-index-url --output-file requirements.txt --upgrade requirements.in  # upgrade everything
+pip-compile --strip-extras --no-emit-index-url --output-file requirements.txt requirements.in
+pip-compile --strip-extras --no-emit-index-url --output-file requirements-dev.txt requirements-dev.in
+# To upgrade, add --upgrade to both commands.
 ```
 
-CI fails if the lock is out of date with `requirements.in`.
+CI fails if either lock is out of date with its `.in` file.
 
 ## Production
 

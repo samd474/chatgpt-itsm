@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from accounts.roles import is_staff_user
 from core.customfields import clean_custom_fields
+from helprequests.access import visible_HelpRequests
 from helprequests.models import HelpRequests
 
 from .models import ChangeApproval, ChangeRequest
@@ -62,7 +63,26 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
 
         return conflicts(obj).count() if obj.pk else 0
 
+    def _viewer(self):
+        request = self.context.get("request")
+        return request.user if request else None
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if "help_requests" not in getattr(instance, "_prefetched_objects_cache", {}):
+            # The viewset prefetches only visible tickets; scope the paths that skip it (e.g. after a save).
+            viewer = self._viewer()
+            visible = visible_HelpRequests(viewer, instance.help_requests.all()) if viewer else HelpRequests.objects.none()
+            data["help_requests"] = list(visible.values_list("public_id", flat=True))
+        return data
+
     def update(self, instance, validated_data):
+        viewer = self._viewer()
+        if "help_requests" in validated_data and viewer is not None:
+            # The editor never sees tickets outside their scope, so keep those links rather than drop them.
+            linked = instance.help_requests.all()
+            hidden = linked.exclude(pk__in=visible_HelpRequests(viewer, linked).values("pk"))
+            validated_data["help_requests"] = [*validated_data["help_requests"], *hidden]
         instance = super().update(instance, validated_data)
         # The list annotation predates this save; the window or assets may have changed.
         instance.__dict__.pop("conflict_total", None)
