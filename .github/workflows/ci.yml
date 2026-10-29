@@ -38,7 +38,12 @@ jobs:
         with:
           python-version: "3.13"
       - run: sudo apt-get update && sudo apt-get install -y libmagic1
-      - run: pip install -r requirements-dev.txt pip-audit
+      - run: pip install -r requirements-dev.txt pip-audit pip-tools==7.6.2
+      - name: Lock file matches requirements.in
+        # Keeps existing pins; fails only if requirements.in changed without re-running pip-compile.
+        run: |
+          pip-compile --quiet --strip-extras --no-emit-index-url --output-file requirements.txt requirements.in
+          git diff --exit-code requirements.txt
       - name: Dependency vulnerability audit
         run: pip-audit -r requirements.txt
       - run: python manage.py check
@@ -50,6 +55,12 @@ jobs:
           DJANGO_HSTS_SECONDS: "31536000"
         run: python manage.py check --deploy --fail-level WARNING
       - run: python manage.py makemigrations --check --dry-run
+      - name: Type check
+        # pyrightconfig.json reads packages from <repo>/.venv; point that at the runner's Python
+        # (without it basedpyright exits 3 even when there are no errors).
+        run: |
+          ln -s "$(python -c 'import sys; print(sys.prefix)')" ../.venv
+          basedpyright -p ..
       - run: pytest -q
 
   frontend:
