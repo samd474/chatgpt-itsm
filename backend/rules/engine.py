@@ -1,4 +1,4 @@
-"""Runs ticket rules once, when a ticket is created (helprequests.services.create_help_request)."""
+"""Runs ticket rules when a ticket is created or updated (called from helprequests.services)."""
 from alerts.services import notify
 from helprequests.models import Category, HelpRequests, HelpRequestsComment, Services, SupportGroups
 from helprequests.priority import calculate_priority
@@ -15,10 +15,18 @@ _SET_RELATION = {
 _SET_LEVEL = {"set_impact": "impact", "set_urgency": "urgency"}
 
 
-def matches(conditions, help_request):
-    """Every given condition must hold; keywords match if any phrase appears in the subject or description."""
+def matches(conditions, help_request, changed=None):
+    """Every given condition must hold; keywords match if any phrase appears in the subject or description.
+
+    `changed` is the set of fields the triggering update changed; None means "not an update", in which
+    case a "changed" condition is ignored (used by preview, where history isn't known).
+    """
     c = conditions or {}
     if "request_type" in c and help_request.request_type != c["request_type"]:
+        return False
+    if "status" in c and help_request.status not in c["status"]:
+        return False
+    if "changed" in c and changed is not None and not set(c["changed"]) & set(changed):
         return False
     for key in ("category", "service"):
         if key in c and getattr(help_request, f"{key}_id") not in c[key]:
@@ -33,11 +41,16 @@ def matches(conditions, help_request):
     return True
 
 
-def apply_rules(help_request: HelpRequests, *, request=None):
-    """Apply matching active rules in order. Later rules see earlier rules' changes. Returns matched rule ids."""
-    changed, followups, matched = set(), [], []
-    for rule in TicketRule.objects.filter(active=True):
-        if not matches(rule.conditions, help_request):
+def apply_rules(help_request: HelpRequests, *, event="created", changed=None, request=None):
+    """Apply matching active rules for `event` ("created" or "updated") in order. Later rules see earlier
+    rules' changes; a rule's own changes never trigger further update rules. Returns the ticket fields the
+    rules changed (including "priority" when it moved), so the caller can follow up (SLA, notifications)."""
+    runs_on = [TicketRule.RunsOn.BOTH, TicketRule.RunsOn.CREATED if event == "created" else TicketRule.RunsOn.UPDATED]
+    trigger_changes = set(changed or ()) if event == "updated" else None
+    priority_before = help_request.priority
+    changed, followups = set(), []
+    for rule in TicketRule.objects.filter(active=True, runs_on__in=runs_on):
+        if not matches(rule.conditions, help_request, trigger_changes):
             continue
         applied, skipped = {}, {}
         for key, value in rule.actions.items():
@@ -61,9 +74,9 @@ def apply_rules(help_request: HelpRequests, *, request=None):
             elif key == "add_note":
                 followups.append(("note", rule, value))
             applied[key] = value
-        matched.append(rule.pk)
         write_audit_event(request, "rule.applied", obj=help_request, actor=None,
-                          metadata={"rule_id": rule.pk, "rule": rule.name, "applied": applied, "skipped": skipped})
+                          metadata={"rule_id": rule.pk, "rule": rule.name, "event": event,
+                                    "applied": applied, "skipped": skipped})
         if rule.stop_processing:
             break
 
@@ -78,4 +91,6 @@ def apply_rules(help_request: HelpRequests, *, request=None):
         else:
             notify("ticket.rule_matched", help_request, recipients=list(value.members.filter(is_active=True)),
                    payload={"rule": rule.name})
-    return matched
+    if help_request.priority != priority_before:
+        changed.add("priority")
+    return changed

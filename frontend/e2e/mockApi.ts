@@ -61,10 +61,11 @@ export const ARTICLE: Article = {
   published_at: "2026-10-01T09:00:00Z",
   created_at: "2026-10-01T09:00:00Z",
   updated_at: "2026-10-01T09:00:00Z",
+  my_feedback: null,
 };
 
 export const RULE: TicketRule = {
-  id: 1, name: "VPN to Network", description: "", position: 10, active: true, stop_processing: false,
+  id: 1, name: "VPN to Network", description: "", position: 10, active: true, stop_processing: false, runs_on: "created",
   conditions: { keywords: ["vpn"] }, actions: { set_assignment_group: 1, set_impact: 2 },
   created_at: "2026-10-01T09:00:00Z", updated_at: "2026-10-01T09:00:00Z",
 };
@@ -84,8 +85,15 @@ const ROUTES: [string, RegExp, unknown][] = [
   ["GET", /^\/api\/help-requests\/[\w-]+\/(attachments|approvals|tasks|articles)\/$/, []],
   ["POST", /^\/api\/help-requests\/[\w-]+\/articles\/$/, [ARTICLE]],
   ["GET", /^\/api\/solutions\/articles\/$/, page([ARTICLE])],
+  ["GET", /^\/api\/solutions\/articles\/suggest\/$/, [{ id: ARTICLE.id, number: ARTICLE.number, title: ARTICLE.title, summary: ARTICLE.summary }]],
+  ["POST", /^\/api\/solutions\/articles\/\d+\/feedback\/$/, { ...ARTICLE, my_feedback: true }],
   ["GET", /^\/api\/rules\/ticket-rules\/$/, [RULE]],
   ["POST", /^\/api\/rules\/ticket-rules\/$/, RULE],
+  ["POST", /^\/api\/rules\/ticket-rules\/preview\/$/, {
+    scanned: 3, matched: 1, ignored_conditions: ["changed"],
+    tickets: [{ public_id: TICKET.public_id, request_number: TICKET.request_number, subject: TICKET.subject, status: TICKET.status,
+      changes: [{ field: "assignment_group", from: null, to: "Network" }] }],
+  }],
   ["GET", /^\/api\/support-groups\/$/, [{ id: 1, name: "Network" }, { id: 2, name: "Service desk" }]],
   ["GET", /^\/api\/solutions\/articles\/\d+\/$/, ARTICLE],
   ["GET", /^\/api\/queues\/$/, [{ id: 1, name: "My groups", description: "", filters: {}, ordering: "-created_at", visible_to_roles: [], position: 0, active: true }]],

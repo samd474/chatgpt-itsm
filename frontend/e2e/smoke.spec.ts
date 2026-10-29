@@ -75,6 +75,26 @@ test("a requester can search the knowledge base and read an article", async ({ p
   await expect(page.getByRole("button", { name: "Edit" })).toHaveCount(0);
 });
 
+test("reporting an issue suggests articles that might fix it", async ({ page }) => {
+  await mockApi(page, ROLE_USERS.requester);
+  await page.goto("/portal/incidents/new");
+  const suggested = page.waitForRequest((r) => r.url().includes("/api/solutions/articles/suggest/"));
+  await page.getByPlaceholder("VPN disconnects every few minutes").fill("VPN keeps dropping");
+  expect(new URL((await suggested).url()).searchParams.get("q")).toBe("VPN keeps dropping");
+  const link = page.getByRole("link", { name: new RegExp(ARTICLE.title) });
+  await expect(link).toHaveAttribute("href", `/knowledge/${ARTICLE.id}`);
+  await expect(link).toHaveAttribute("target", "_blank");  // the half-written report stays open
+});
+
+test("readers can say whether an article helped", async ({ page }) => {
+  await mockApi(page, ROLE_USERS.requester);
+  await page.goto(`/knowledge/${ARTICLE.id}`);
+  await expect(page.getByText("Was this helpful?")).toBeVisible();
+  await page.getByRole("button", { name: "Yes" }).click();
+  await expect(page.getByRole("button", { name: "Yes" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Thanks for the feedback.")).toBeVisible();
+});
+
 test("a technician links an article and uses it as the resolution", async ({ page }) => {
   await mockApi(page, ROLE_USERS.technician);
   await page.goto(`/tech/tickets/${TICKET.public_id}`);
@@ -90,7 +110,7 @@ test("an administrator reads and creates automation rules", async ({ page }) => 
   await mockApi(page, ROLE_USERS.admin);
   await page.goto("/manage/tickets");
   await page.getByRole("tab", { name: "Automation" }).click();
-  await expect(page.getByText('When mentions "vpn": route to Network, impact High')).toBeVisible();
+  await expect(page.getByText('When a ticket is created and mentions "vpn": route to Network, impact High')).toBeVisible();
 
   await page.getByRole("button", { name: "New rule" }).click();
   await page.getByLabel("Name").fill("Printers to the desk");
@@ -102,6 +122,49 @@ test("an administrator reads and creates automation rules", async ({ page }) => 
   expect(body.conditions).toEqual({ keywords: ["printer", "toner"] });
   expect(body.actions).toEqual({ set_assignment_group: 2 });
   // Saving closes the drawer and refetches the list; let that finish while the API is still mocked.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.waitForLoadState("networkidle");
+});
+
+test("an update rule saves what it watches, and previews before saving", async ({ page }) => {
+  await mockApi(page, ROLE_USERS.admin);
+  await page.goto("/manage/tickets");
+  await page.getByRole("tab", { name: "Automation" }).click();
+  await page.getByRole("button", { name: "New rule" }).click();
+  await page.getByLabel("Name").fill("Escalate reopened tickets");
+  await page.getByLabel("Runs", { exact: true }).selectOption("updated");
+  await page.getByPlaceholder("Pick fields").click();
+  await page.getByRole("option", { name: "Status" }).click();
+  await page.getByLabel("Route to group").selectOption({ label: "Network" });
+
+  await page.getByRole("button", { name: "Preview" }).click();
+  await expect(page.getByText("Would match 1 of the last 3 tickets")).toBeVisible();
+  await expect(page.getByText("assignment group: none → Network")).toBeVisible();
+  await expect(page.getByText(/can't be judged after the fact/)).toBeVisible();
+
+  const saved = page.waitForRequest((r) => r.method() === "POST" && r.url().endsWith("/api/rules/ticket-rules/"));
+  await page.getByRole("button", { name: "Save" }).click();
+  const body = (await saved).postDataJSON();
+  expect(body.runs_on).toBe("updated");
+  expect(body.conditions).toEqual({ changed: ["status"] });
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.waitForLoadState("networkidle");
+});
+
+test("create-only rules never send an update condition", async ({ page }) => {
+  await mockApi(page, ROLE_USERS.admin);
+  await page.goto("/manage/tickets");
+  await page.getByRole("tab", { name: "Automation" }).click();
+  await page.getByRole("button", { name: "New rule" }).click();
+  await page.getByLabel("Name").fill("Switch back");
+  await page.getByLabel("Runs", { exact: true }).selectOption("both");
+  await page.getByPlaceholder("Pick fields").click();
+  await page.getByRole("option", { name: "Category" }).click();
+  await page.getByLabel("Runs", { exact: true }).selectOption("created");
+  await page.getByLabel("Set impact").selectOption("1");
+  const saved = page.waitForRequest((r) => r.method() === "POST" && r.url().endsWith("/api/rules/ticket-rules/"));
+  await page.getByRole("button", { name: "Save" }).click();
+  expect((await saved).postDataJSON().conditions).toEqual({});
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.waitForLoadState("networkidle");
 });

@@ -377,3 +377,6 @@ input[type=file]::file-selector-button:hover { background: var(--surface-hover);
   .hide-sm { display: none; }
   .toolbar .select { flex: 1 1 140px; min-width: 0; }
 }
+
+.suggestions { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
+.suggestions .list-item { color: inherit; }
