@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "react-router-dom";
 import { getTicket, transitionTicket } from "../../api/tickets";
 import { apiErrorMessage } from "../../api/client";
+import { ArticlesPanel } from "../../components/ArticlesPanel";
 import { AttachmentsPanel } from "../../components/AttachmentsPanel";
 import { PriorityBadge, StatusBadge } from "../../components/badges";
 import { Conversation } from "../../components/Conversation";
@@ -59,6 +60,7 @@ export function TicketDetailPage() {
                 <PropRows data={t.custom_fields} />
               </dl>
             </Card>
+            <ArticlesPanel publicId={t.public_id} staff={false} />
             <AttachmentsPanel publicId={t.public_id} canUpload={!["closed", "cancelled"].includes(t.status)} />
           </div>
         </div>

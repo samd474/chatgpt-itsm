@@ -5,22 +5,23 @@ import type { FieldDef, Option } from "../../components/form";
 import { ResourceManager } from "../../components/ResourceManager";
 import { Badge, PageHeader, Tabs } from "../../components/ui";
 import { LEVELS } from "../../utils/format";
+import { RulesTab } from "./RulesTab";
 
 type Row = { id: number } & Record<string, unknown>;
 const levels: Option[] = LEVELS.map((l) => ({ value: l.value, label: l.label }));
 const active = (r: Row) => (r.active === false ? <Badge tone="gray">Inactive</Badge> : <Badge tone="green" dot>Active</Badge>);
 const activeField: FieldDef = { name: "active", label: "Active", type: "checkbox", span: true };
 
-type TabKey = "groups" | "categories" | "services" | "templates" | "queues" | "fields";
+type TabKey = "groups" | "categories" | "services" | "templates" | "queues" | "rules" | "fields";
 
 export function TicketSetupPage() {
   const [tab, setTab] = useState<TabKey>("groups");
   return (
     <>
-      <PageHeader title="Ticket setup" description="Teams, classification, templates, queues and custom fields." />
+      <PageHeader title="Ticket setup" description="Teams, classification, templates, queues, automation rules and custom fields." />
       <Tabs value={tab} onChange={setTab} tabs={[
         { value: "groups", label: "Support groups" }, { value: "categories", label: "Categories" }, { value: "services", label: "Services" },
-        { value: "templates", label: "Templates" }, { value: "queues", label: "Queues" }, { value: "fields", label: "Custom fields" },
+        { value: "templates", label: "Templates" }, { value: "queues", label: "Queues" }, { value: "rules", label: "Automation" }, { value: "fields", label: "Custom fields" },
       ]} />
       {tab === "groups" && <ResourceManager<Row> config={{
         title: "Support groups", noun: "group", endpoint: ENDPOINTS.supportGroups, canDelete: true, defaults: { active: true },
@@ -96,6 +97,7 @@ export function TicketSetupPage() {
           activeField,
         ],
       }} />}
+      {tab === "rules" && <RulesTab />}
       {tab === "fields" && <ResourceManager<Row> config={{
         title: "Custom fields", noun: "field", endpoint: ENDPOINTS.customFields, canDelete: true,
         defaults: { active: true, entity: "ticket", field_type: "text", options: [], visible_to_requester: true, position: 0 },

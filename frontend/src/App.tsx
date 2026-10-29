@@ -15,6 +15,8 @@ const TicketDetailPage = lazy(() => import("./pages/portal/TicketDetailPage").th
 const CatalogPage = lazy(() => import("./pages/portal/CatalogPage").then((m) => ({ default: m.CatalogPage })));
 const CatalogItemPage = lazy(() => import("./pages/portal/CatalogItemPage").then((m) => ({ default: m.CatalogItemPage })));
 const EquipmentPage = lazy(() => import("./pages/portal/EquipmentPage").then((m) => ({ default: m.EquipmentPage })));
+const KnowledgePage = lazy(() => import("./pages/knowledge/KnowledgePage").then((m) => ({ default: m.KnowledgePage })));
+const ArticlePage = lazy(() => import("./pages/knowledge/ArticlePage").then((m) => ({ default: m.ArticlePage })));
 const ApprovalsPage = lazy(() => import("./pages/approvals/ApprovalsPage").then((m) => ({ default: m.ApprovalsPage })));
 const QueuePage = lazy(() => import("./pages/technician/QueuePage").then((m) => ({ default: m.QueuePage })));
 const TechnicianTicketPage = lazy(() => import("./pages/technician/TechnicianTicketPage").then((m) => ({ default: m.TechnicianTicketPage })));
@@ -56,6 +58,8 @@ export default function App() {
           <Route path="/portal/catalog/:slug" element={<CatalogItemPage />} />
           <Route path="/portal/equipment" element={<EquipmentPage />} />
           <Route path="/approvals" element={<ApprovalsPage />} />
+          <Route path="/knowledge" element={<KnowledgePage />} />
+          <Route path="/knowledge/:id" element={<ArticlePage />} />
 
           <Route element={<RequireRole allowed={STAFF} />}>
             <Route path="/tech" element={<Navigate to="/tech/queue" replace />} />

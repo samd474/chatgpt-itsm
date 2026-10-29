@@ -61,6 +61,10 @@ TEMPLATES = {
         "[{number}] Change scheduled",
         "Change {number} \"{subject}\" is scheduled to start {planned_start}.\n\nView it: {link}\n",
     ),
+    "ticket.rule_matched": (
+        "[{number}] {subject}",
+        "Ticket {number} \"{subject}\" (P{priority}) matched the rule \"{rule}\".\n\nOpen it: {staff_link}\n",
+    ),
     "project.task_assigned": (
         "[{number}] Task assigned to you",
         "You have been assigned \"{subject}\" in project {project}.\n\nOpen it: {link}\n",
@@ -72,7 +76,7 @@ TEMPLATES = {
 # such as {number.__class__}) is rejected, so templates can't reach Python internals.
 PLACEHOLDERS = {
     "number", "subject", "priority", "link", "staff_link", "approvals_link", "recipient_name", "target",
-    "comment_id", "end_date", "vendor", "change_type", "risk", "planned_start", "project",
+    "comment_id", "end_date", "vendor", "change_type", "risk", "planned_start", "project", "rule",
 }
 
 

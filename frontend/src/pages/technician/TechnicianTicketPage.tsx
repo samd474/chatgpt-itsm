@@ -18,6 +18,7 @@ import {
   type TicketUpdateInput,
 } from "../../api/tickets";
 import { apiErrorMessage } from "../../api/client";
+import { ArticlesPanel } from "../../components/ArticlesPanel";
 import { AttachmentsPanel } from "../../components/AttachmentsPanel";
 import { Pill, PriorityBadge, SlaBadge, StatusBadge } from "../../components/badges";
 import { Conversation } from "../../components/Conversation";
@@ -188,6 +189,11 @@ export function TechnicianTicketPage() {
               </div>
             )}
           </Card>
+          <ArticlesPanel publicId={t.public_id} staff onUse={next.includes("resolved") ? (a) => {
+            setTarget("resolved");
+            setResolutionCode((code) => code || "knowledge-base");
+            setResolutionBody(`${a.body}\n\n(From ${a.number}: ${a.title})`);
+          } : undefined} />
           <AttachmentsPanel publicId={t.public_id} canUpload />
         </div>
       </div>

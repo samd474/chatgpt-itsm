@@ -70,8 +70,8 @@ export type Paginated<T> = {
 
 export type TicketComment = {
   id: number;
-  author: number;
-  author_name?: string;
+  author: number | null; // null: added by an automation rule
+  author_name?: string | null;
   body: string;
   visibility: "public" | "private";
   created_at: string;
@@ -347,6 +347,60 @@ export type Change = {
   help_requests: string[];
   approvals: ChangeApproval[];
   conflict_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ArticleStatus = "draft" | "published" | "retired";
+
+export type Article = {
+  id: number;
+  number: string | null;
+  title: string;
+  summary: string;
+  body: string;
+  keywords: string;
+  status: ArticleStatus;
+  visibility: "public" | "internal";
+  category: number | null;
+  category_name: string | null;
+  service: number | null;
+  service_name: string | null;
+  author: number;
+  author_name: string | null;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RuleConditions = {
+  request_type?: "incident" | "request";
+  category?: number[];
+  service?: number[];
+  impact?: number[];
+  urgency?: number[];
+  keywords?: string[];
+};
+
+export type RuleActions = {
+  set_assignment_group?: number;
+  set_category?: number;
+  set_service?: number;
+  set_impact?: number;
+  set_urgency?: number;
+  notify_group?: number;
+  add_note?: string;
+};
+
+export type TicketRule = {
+  id: number;
+  name: string;
+  description: string;
+  position: number;
+  active: boolean;
+  stop_processing: boolean;
+  conditions: RuleConditions;
+  actions: RuleActions;
   created_at: string;
   updated_at: string;
 };
