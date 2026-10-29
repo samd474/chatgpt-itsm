@@ -136,7 +136,8 @@ class HelpRequestsComment(models.Model):
         PRIVATE = "private", "Private"
 
     help_request = models.ForeignKey(HelpRequests, on_delete=models.CASCADE, related_name="comments")
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    # Null means the note was added by automation (a ticket rule), not a person.
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT)
     body = models.TextField()
     visibility = models.CharField(max_length=10, choices=Visibility.choices, default=Visibility.PUBLIC)
     created_at = models.DateTimeField(auto_now_add=True)

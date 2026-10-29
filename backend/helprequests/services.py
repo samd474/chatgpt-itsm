@@ -80,6 +80,11 @@ def create_help_request(*, requester, request=None, **data):
         **data,
     )
     assign_request_number(help_request)
+    # Rules may route or re-prioritise the ticket, so they run before the SLA is chosen and before
+    # the assignment notification goes out.
+    from rules.engine import apply_rules
+
+    apply_rules(help_request, request=request)
     sla_services.attach_sla(help_request)
     write_audit_event(request, "ticket.created", obj=help_request, actor=requester, before={}, after=snapshot(help_request))
     notify("ticket.created", help_request, recipients=[requester])
