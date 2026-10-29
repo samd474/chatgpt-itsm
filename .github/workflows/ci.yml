@@ -56,8 +56,11 @@ jobs:
         run: python manage.py check --deploy --fail-level WARNING
       - run: python manage.py makemigrations --check --dry-run
       - name: Type check
-        # pyrightconfig.json expects a local .venv; point it at the runner's Python instead.
-        run: basedpyright --pythonpath "$(which python)" -p ..
+        # pyrightconfig.json reads packages from <repo>/.venv; point that at the runner's Python
+        # (without it basedpyright exits 3 even when there are no errors).
+        run: |
+          ln -s "$(python -c 'import sys; print(sys.prefix)')" ../.venv
+          basedpyright -p ..
       - run: pytest -q
 
   frontend:
