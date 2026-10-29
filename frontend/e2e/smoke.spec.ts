@@ -110,7 +110,7 @@ test("an administrator reads and creates automation rules", async ({ page }) => 
   await mockApi(page, ROLE_USERS.admin);
   await page.goto("/manage/tickets");
   await page.getByRole("tab", { name: "Automation" }).click();
-  await expect(page.getByText('When mentions "vpn": route to Network, impact High')).toBeVisible();
+  await expect(page.getByText('When a ticket is created and mentions "vpn": route to Network, impact High')).toBeVisible();
 
   await page.getByRole("button", { name: "New rule" }).click();
   await page.getByLabel("Name").fill("Printers to the desk");
@@ -122,6 +122,49 @@ test("an administrator reads and creates automation rules", async ({ page }) => 
   expect(body.conditions).toEqual({ keywords: ["printer", "toner"] });
   expect(body.actions).toEqual({ set_assignment_group: 2 });
   // Saving closes the drawer and refetches the list; let that finish while the API is still mocked.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.waitForLoadState("networkidle");
+});
+
+test("an update rule saves what it watches, and previews before saving", async ({ page }) => {
+  await mockApi(page, ROLE_USERS.admin);
+  await page.goto("/manage/tickets");
+  await page.getByRole("tab", { name: "Automation" }).click();
+  await page.getByRole("button", { name: "New rule" }).click();
+  await page.getByLabel("Name").fill("Escalate reopened tickets");
+  await page.getByLabel("Runs", { exact: true }).selectOption("updated");
+  await page.getByPlaceholder("Pick fields").click();
+  await page.getByRole("option", { name: "Status" }).click();
+  await page.getByLabel("Route to group").selectOption({ label: "Network" });
+
+  await page.getByRole("button", { name: "Preview" }).click();
+  await expect(page.getByText("Would match 1 of the last 3 tickets")).toBeVisible();
+  await expect(page.getByText("assignment group: none → Network")).toBeVisible();
+  await expect(page.getByText(/can't be judged after the fact/)).toBeVisible();
+
+  const saved = page.waitForRequest((r) => r.method() === "POST" && r.url().endsWith("/api/rules/ticket-rules/"));
+  await page.getByRole("button", { name: "Save" }).click();
+  const body = (await saved).postDataJSON();
+  expect(body.runs_on).toBe("updated");
+  expect(body.conditions).toEqual({ changed: ["status"] });
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.waitForLoadState("networkidle");
+});
+
+test("create-only rules never send an update condition", async ({ page }) => {
+  await mockApi(page, ROLE_USERS.admin);
+  await page.goto("/manage/tickets");
+  await page.getByRole("tab", { name: "Automation" }).click();
+  await page.getByRole("button", { name: "New rule" }).click();
+  await page.getByLabel("Name").fill("Switch back");
+  await page.getByLabel("Runs", { exact: true }).selectOption("both");
+  await page.getByPlaceholder("Pick fields").click();
+  await page.getByRole("option", { name: "Category" }).click();
+  await page.getByLabel("Runs", { exact: true }).selectOption("created");
+  await page.getByLabel("Set impact").selectOption("1");
+  const saved = page.waitForRequest((r) => r.method() === "POST" && r.url().endsWith("/api/rules/ticket-rules/"));
+  await page.getByRole("button", { name: "Save" }).click();
+  expect((await saved).postDataJSON().conditions).toEqual({});
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.waitForLoadState("networkidle");
 });

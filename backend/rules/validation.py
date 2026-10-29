@@ -3,6 +3,8 @@ Administrators never supply field names, lookups or code."""
 from helprequests.models import Category, HelpRequests, Services, SupportGroups
 
 LEVELS = set(HelpRequests.Level.values)
+# Ticket fields an update rule can react to (the "changed" condition).
+CHANGEABLE = {"status", "category", "service", "impact", "urgency", "priority", "assignment_group", "technician"}
 MAX_KEYWORDS = 20
 MAX_NOTE = 2000
 
@@ -32,7 +34,7 @@ def validate_conditions(conditions):
     """Every condition given must match (AND); an empty object matches every new ticket."""
     if not isinstance(conditions, dict):
         raise ValueError("conditions must be an object")
-    allowed = {"request_type", "category", "service", "impact", "urgency", "keywords"}
+    allowed = {"request_type", "category", "service", "impact", "urgency", "keywords", "status", "changed"}
     unknown = set(conditions) - allowed
     if unknown:
         raise ValueError(f"unknown condition keys: {', '.join(sorted(unknown))}")
@@ -54,7 +56,26 @@ def validate_conditions(conditions):
                 or not all(isinstance(w, str) and 0 < len(w.strip()) <= 100 for w in words)):
             raise ValueError(f"keywords must be 1-{MAX_KEYWORDS} non-empty phrases of up to 100 characters")
         cleaned["keywords"] = [w.strip() for w in words]
+    if "status" in conditions:
+        statuses = conditions["status"]
+        if not isinstance(statuses, list) or not statuses or not set(statuses) <= set(HelpRequests.RequestStatus.values):
+            raise ValueError("status must be a non-empty list of ticket statuses")
+        cleaned["status"] = statuses
+    if "changed" in conditions:
+        fields = conditions["changed"]
+        if not isinstance(fields, list) or not fields or not set(fields) <= CHANGEABLE:
+            raise ValueError(f"changed must be a non-empty list drawn from: {', '.join(sorted(CHANGEABLE))}")
+        cleaned["changed"] = fields
     return cleaned
+
+
+def validate_rule(runs_on, conditions):
+    """Cross-field checks once conditions are clean."""
+    if runs_on == "created" and "changed" in conditions:
+        raise ValueError("'changed' only applies to rules that run when a ticket is updated")
+    if runs_on == "updated" and "changed" not in conditions:
+        # Without it the rule would fire on every edit of every matching ticket.
+        raise ValueError("Rules that run on updates must say which change they react to ('changed')")
 
 
 def validate_actions(actions):
