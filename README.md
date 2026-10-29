@@ -84,6 +84,14 @@ docker compose exec frontend npm run lint
 docker compose exec frontend npm run build
 ```
 
+Frontend smoke tests open every screen of the production build in Chromium with the API mocked in the
+browser, so they need no backend. From `frontend/`:
+
+```bash
+npx playwright install chromium   # once
+npm run build && npm run test:e2e
+```
+
 For editor tooling outside Docker: `python -m venv .venv && .venv/bin/pip install -r backend/requirements-dev.txt`.
 Type-check the backend with `.venv/bin/basedpyright` from the repository root.
 
