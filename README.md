@@ -46,8 +46,8 @@ session and CSRF cookies behave the same way they will behind NGINX in productio
 | — | `projects` | Projects, members, milestones, tasks with dependencies |
 | — | `changes` | Change requests, CAB approvals, scheduling, conflict detection, calendar |
 | — | `solutions` | Knowledge base: articles (draft → published → retired, public or staff-only), search, links to tickets |
+| — | `rules` | Ticket automation: ordered rules that route, re-prioritise, notify or add a private note when a ticket is created |
 
-`rules` is an empty placeholder for a later phase.
 
 ## API
 

@@ -21,6 +21,7 @@ urlpatterns = [
     path("api/projects/", include("projects.urls")),
     path("api/changes/", include("changes.urls")),
     path("api/solutions/", include("solutions.urls")),
+    path("api/rules/", include("rules.urls")),
     path("api/", include(public_patterns)),
     path("api/", include("helprequests.urls")),
     path("api/", include("reports.urls")),

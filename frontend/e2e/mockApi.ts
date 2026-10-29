@@ -1,5 +1,5 @@
 import type { Page, Route } from "@playwright/test";
-import type { Article, Paginated, Ticket, User } from "../src/types";
+import type { Article, Paginated, Ticket, TicketRule, User } from "../src/types";
 
 // The browser only ever talks to /api; these tests answer it in-process, so they need no backend.
 
@@ -63,6 +63,12 @@ export const ARTICLE: Article = {
   updated_at: "2026-10-01T09:00:00Z",
 };
 
+export const RULE: TicketRule = {
+  id: 1, name: "VPN to Network", description: "", position: 10, active: true, stop_processing: false,
+  conditions: { keywords: ["vpn"] }, actions: { set_assignment_group: 1, set_impact: 2 },
+  created_at: "2026-10-01T09:00:00Z", updated_at: "2026-10-01T09:00:00Z",
+};
+
 const page = <T>(results: T[]): Paginated<T> => ({ count: results.length, next: null, previous: null, results });
 
 // [method, path pattern, response body]. First match wins; anything unmatched fails the test.
@@ -73,10 +79,14 @@ const ROUTES: [string, RegExp, unknown][] = [
   ["GET", /^\/api\/help-requests\/[\w-]+\/$/, TICKET],
   ["GET", /^\/api\/help-requests\/[\w-]+\/comments\/$/, [
     { id: 1, author: 3, author_name: "Tom Technician", body: "Looking into it.", visibility: "public", created_at: "2026-10-20T10:00:00Z" },
+    { id: 2, author: null, author_name: null, body: "Check the VPN status page first.", visibility: "private", created_at: "2026-10-20T09:00:01Z" },
   ]],
   ["GET", /^\/api\/help-requests\/[\w-]+\/(attachments|approvals|tasks|articles)\/$/, []],
   ["POST", /^\/api\/help-requests\/[\w-]+\/articles\/$/, [ARTICLE]],
   ["GET", /^\/api\/solutions\/articles\/$/, page([ARTICLE])],
+  ["GET", /^\/api\/rules\/ticket-rules\/$/, [RULE]],
+  ["POST", /^\/api\/rules\/ticket-rules\/$/, RULE],
+  ["GET", /^\/api\/support-groups\/$/, [{ id: 1, name: "Network" }, { id: 2, name: "Service desk" }]],
   ["GET", /^\/api\/solutions\/articles\/\d+\/$/, ARTICLE],
   ["GET", /^\/api\/queues\/$/, [{ id: 1, name: "My groups", description: "", filters: {}, ordering: "-created_at", visible_to_roles: [], position: 0, active: true }]],
   ["GET", /^\/api\/queues\/\d+\/tickets\/$/, page([TICKET])],
