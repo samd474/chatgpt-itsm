@@ -29,10 +29,10 @@ export function Conversation({ publicId, staff, onPosted }: { publicId: string; 
       <div className="timeline">
         {comments.data?.map((c) => (
           <article key={c.id} className={`entry${c.visibility === "private" ? " private" : ""}`}>
-            <Avatar name={c.author_name} />
+            <Avatar name={c.author_name ?? "Automation"} />
             <div>
               <div className="entry-head">
-                <strong>{c.author_name}</strong>
+                <strong>{c.author_name ?? "Automation"}</strong>
                 {c.visibility === "private" && <Badge tone="amber"><Lock size={11} />Internal note</Badge>}
                 <span className="subtle">{relativeTime(c.created_at)}</span>
               </div>

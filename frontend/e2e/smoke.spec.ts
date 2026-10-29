@@ -86,6 +86,33 @@ test("a technician links an article and uses it as the resolution", async ({ pag
   await expect(page.getByPlaceholder("What fixed it? The requester sees this.")).toHaveValue(/Forget the VPN profile[\s\S]*KB-000007/);
 });
 
+test("an administrator reads and creates automation rules", async ({ page }) => {
+  await mockApi(page, ROLE_USERS.admin);
+  await page.goto("/manage/tickets");
+  await page.getByRole("tab", { name: "Automation" }).click();
+  await expect(page.getByText('When mentions "vpn": route to Network, impact High')).toBeVisible();
+
+  await page.getByRole("button", { name: "New rule" }).click();
+  await page.getByLabel("Name").fill("Printers to the desk");
+  await page.getByLabel("Keywords").fill("printer\n  toner  \n");
+  await page.getByLabel("Route to group").selectOption({ label: "Service desk" });
+  const saved = page.waitForRequest((r) => r.method() === "POST" && r.url().endsWith("/api/rules/ticket-rules/"));
+  await page.getByRole("button", { name: "Save" }).click();
+  const body = (await saved).postDataJSON();
+  expect(body.conditions).toEqual({ keywords: ["printer", "toner"] });
+  expect(body.actions).toEqual({ set_assignment_group: 2 });
+  // Saving closes the drawer and refetches the list; let that finish while the API is still mocked.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.waitForLoadState("networkidle");
+});
+
+test("notes added by automation are labelled as such", async ({ page }) => {
+  await mockApi(page, ROLE_USERS.technician);
+  await page.goto(`/tech/tickets/${TICKET.public_id}`);
+  await expect(page.getByText("Check the VPN status page first.")).toBeVisible();
+  await expect(page.locator(".entry-head strong", { hasText: "Automation" })).toBeVisible();
+});
+
 // Every list screen renders for an administrator, who can reach all of them.
 const SCREENS = [
   "/portal", "/portal/incidents/new", "/portal/catalog", "/portal/equipment", "/approvals",
