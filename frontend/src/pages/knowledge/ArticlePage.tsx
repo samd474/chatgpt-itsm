@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil } from "lucide-react";
+import { Pencil, ThumbsDown, ThumbsUp } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiErrorMessage } from "../../api/client";
-import { getArticle, saveArticle, type ArticleInput } from "../../api/solutions";
+import { getArticle, saveArticle, sendArticleFeedback, type ArticleInput } from "../../api/solutions";
 import { getCategories, getServices } from "../../api/tickets";
 import { useAuth } from "../../auth/context";
 import { hasRole, isStaff } from "../../auth/roles";
@@ -79,6 +79,25 @@ function ArticleEditor({ article, canPublish, onSaved, onCancel }: {
   );
 }
 
+function Feedback({ article }: { article: Article }) {
+  const queryClient = useQueryClient();
+  const vote = useMutation({
+    mutationFn: (helpful: boolean) => sendArticleFeedback(article.id, helpful),
+    onSuccess: (saved) => queryClient.setQueryData(["article", String(saved.id)], saved),
+  });
+  const mine = article.my_feedback;
+  return (
+    <div className="row" style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--border)" }}>
+      <span className="muted">{mine === null ? "Was this helpful?" : "Thanks for the feedback."}</span>
+      <button className={`btn btn-sm ${mine === true ? "btn-primary" : "btn-secondary"}`} aria-pressed={mine === true}
+        disabled={vote.isPending} onClick={() => vote.mutate(true)}><ThumbsUp />Yes</button>
+      <button className={`btn btn-sm ${mine === false ? "btn-primary" : "btn-secondary"}`} aria-pressed={mine === false}
+        disabled={vote.isPending} onClick={() => vote.mutate(false)}><ThumbsDown />No</button>
+      {vote.isError && <Notice tone="error">{apiErrorMessage(vote.error)}</Notice>}
+    </div>
+  );
+}
+
 export function ArticlePage() {
   const { id = "" } = useParams();
   const isNew = id === "new";
@@ -111,7 +130,11 @@ export function ArticlePage() {
         actions={canEdit && !editing && <button className="btn btn-secondary" onClick={() => setEditing(true)}><Pencil />Edit</button>} />
       {editing ? <ArticleEditor article={a} canPublish={canPublish} onSaved={onSaved} onCancel={() => setEditing(false)} /> : (
         <div className="grid-main">
-          <Card><p className="pre-wrap">{a.body}</p></Card>
+          <Card>
+            <p className="pre-wrap">{a.body}</p>
+            {/* Auditors are read-only; only published articles take feedback. */}
+            {a.status === "published" && !hasRole(user, "Auditor") && <Feedback article={a} />}
+          </Card>
           <Card title="Details">
             <dl className="props">
               {isStaff(user) && <><dt>Status</dt><dd><Pill value={a.status} /></dd><dt>Readers</dt><dd><Pill value={a.visibility} /></dd></>}
@@ -119,6 +142,7 @@ export function ArticlePage() {
               <dt>Service</dt><dd>{a.service_name || "—"}</dd>
               <dt>Author</dt><dd>{a.author_name}</dd>
               <dt>Updated</dt><dd>{formatDate(a.updated_at)}</dd>
+              {a.helpful_count != null && <><dt>Feedback</dt><dd>{a.helpful_count} helpful · {a.not_helpful_count} not helpful</dd></>}
             </dl>
           </Card>
         </div>

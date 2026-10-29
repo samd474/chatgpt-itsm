@@ -15,10 +15,11 @@ export function KnowledgePage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState(staff ? "" : "published");
+  const [ordering, setOrdering] = useState("");
   const [page, setPage] = useState(1);
   const query = useQuery({
-    queryKey: ["articles", search, status, page],
-    queryFn: () => listArticles({ page, search: search || undefined, status: status || undefined }),
+    queryKey: ["articles", search, status, ordering, page],
+    queryFn: () => listArticles({ page, search: search || undefined, status: status || undefined, ordering: ordering || undefined }),
   });
 
   return (
@@ -30,6 +31,11 @@ export function KnowledgePage() {
         {staff && (
           <select className="select" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} aria-label="Status">
             <option value="">Any status</option><option value="published">Published</option><option value="draft">Draft</option><option value="retired">Retired</option>
+          </select>
+        )}
+        {staff && (
+          <select className="select" value={ordering} onChange={(e) => { setOrdering(e.target.value); setPage(1); }} aria-label="Sort">
+            <option value="">Recently updated</option><option value="-not_helpful_count">Least helpful first</option><option value="-helpful_count">Most helpful first</option>
           </select>
         )}
       </div>
@@ -48,6 +54,9 @@ export function KnowledgePage() {
             </div>
             <h3>{a.title}</h3>
             {a.summary && <p>{a.summary}</p>}
+            {staff && a.helpful_count != null && (a.helpful_count > 0 || (a.not_helpful_count ?? 0) > 0) && (
+              <span className="subtle">{a.helpful_count} helpful · {a.not_helpful_count} not helpful</span>
+            )}
           </Link>
         ))}
       </div>

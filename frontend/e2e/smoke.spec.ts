@@ -75,6 +75,26 @@ test("a requester can search the knowledge base and read an article", async ({ p
   await expect(page.getByRole("button", { name: "Edit" })).toHaveCount(0);
 });
 
+test("reporting an issue suggests articles that might fix it", async ({ page }) => {
+  await mockApi(page, ROLE_USERS.requester);
+  await page.goto("/portal/incidents/new");
+  const suggested = page.waitForRequest((r) => r.url().includes("/api/solutions/articles/suggest/"));
+  await page.getByPlaceholder("VPN disconnects every few minutes").fill("VPN keeps dropping");
+  expect(new URL((await suggested).url()).searchParams.get("q")).toBe("VPN keeps dropping");
+  const link = page.getByRole("link", { name: new RegExp(ARTICLE.title) });
+  await expect(link).toHaveAttribute("href", `/knowledge/${ARTICLE.id}`);
+  await expect(link).toHaveAttribute("target", "_blank");  // the half-written report stays open
+});
+
+test("readers can say whether an article helped", async ({ page }) => {
+  await mockApi(page, ROLE_USERS.requester);
+  await page.goto(`/knowledge/${ARTICLE.id}`);
+  await expect(page.getByText("Was this helpful?")).toBeVisible();
+  await page.getByRole("button", { name: "Yes" }).click();
+  await expect(page.getByRole("button", { name: "Yes" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Thanks for the feedback.")).toBeVisible();
+});
+
 test("a technician links an article and uses it as the resolution", async ({ page }) => {
   await mockApi(page, ROLE_USERS.technician);
   await page.goto(`/tech/tickets/${TICKET.public_id}`);

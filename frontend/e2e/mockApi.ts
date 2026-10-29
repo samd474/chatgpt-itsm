@@ -61,6 +61,7 @@ export const ARTICLE: Article = {
   published_at: "2026-10-01T09:00:00Z",
   created_at: "2026-10-01T09:00:00Z",
   updated_at: "2026-10-01T09:00:00Z",
+  my_feedback: null,
 };
 
 export const RULE: TicketRule = {
@@ -84,6 +85,8 @@ const ROUTES: [string, RegExp, unknown][] = [
   ["GET", /^\/api\/help-requests\/[\w-]+\/(attachments|approvals|tasks|articles)\/$/, []],
   ["POST", /^\/api\/help-requests\/[\w-]+\/articles\/$/, [ARTICLE]],
   ["GET", /^\/api\/solutions\/articles\/$/, page([ARTICLE])],
+  ["GET", /^\/api\/solutions\/articles\/suggest\/$/, [{ id: ARTICLE.id, number: ARTICLE.number, title: ARTICLE.title, summary: ARTICLE.summary }]],
+  ["POST", /^\/api\/solutions\/articles\/\d+\/feedback\/$/, { ...ARTICLE, my_feedback: true }],
   ["GET", /^\/api\/rules\/ticket-rules\/$/, [RULE]],
   ["POST", /^\/api\/rules\/ticket-rules\/$/, RULE],
   ["GET", /^\/api\/support-groups\/$/, [{ id: 1, name: "Network" }, { id: 2, name: "Service desk" }]],

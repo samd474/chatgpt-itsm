@@ -371,6 +371,9 @@ export type Article = {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  helpful_count?: number | null; // staff and auditors only
+  not_helpful_count?: number | null;
+  my_feedback: boolean | null;
 };
 
 export type RuleConditions = {

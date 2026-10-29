@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { BookOpen } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { suggestArticles } from "../../api/solutions";
 import { createTicket, getCategories, getCustomFields, getServices, getTemplates, uploadAttachment } from "../../api/tickets";
 import { apiFieldErrors } from "../../components/form";
 import { CustomFieldsForm } from "../../components/DynamicField";
@@ -10,6 +12,29 @@ import { LEVELS } from "../../utils/format";
 
 type Form = { subject: string; description: string; impact: number; urgency: number; category: string; service: string };
 const EMPTY: Form = { subject: "", description: "", impact: 3, urgency: 3, category: "", service: "" };
+
+/** Knowledge-base articles that might fix the problem before it's submitted. Opens in a new tab so the draft survives. */
+function Suggestions({ subject }: { subject: string }) {
+  const [term, setTerm] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setTerm(subject.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [subject]);
+  const query = useQuery({ queryKey: ["article-suggestions", term], enabled: term.length >= 3, queryFn: () => suggestArticles(term) });
+  if (term.length < 3 || !query.data || query.data.length === 0) return null;
+  return (
+    <div className="suggestions" aria-live="polite">
+      <strong>These articles might fix it</strong>
+      <div className="list">
+        {query.data.map((a) => (
+          <a className="list-item" key={a.id} href={`/knowledge/${a.id}`} target="_blank" rel="noopener noreferrer">
+            <BookOpen /><span><span>{a.title}</span>{a.summary && <span className="subtle"> · {a.summary}</span>}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function NewIncidentPage() {
   const navigate = useNavigate();
@@ -76,6 +101,7 @@ export function NewIncidentPage() {
           <div className="form-grid">
             <Field label="Summary" span error={errors.fields.subject}>
               <input className="input" value={form.subject} onChange={(e) => set("subject", e.target.value)} placeholder="VPN disconnects every few minutes" />
+              <Suggestions subject={form.subject} />
             </Field>
             <Field label="Description" span error={errors.fields.description}>
               <textarea className="textarea" rows={6} value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="What happened, what you expected, and what you've tried." />
