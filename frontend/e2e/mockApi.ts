@@ -1,5 +1,5 @@
 import type { Page, Route } from "@playwright/test";
-import type { Paginated, Ticket, User } from "../src/types";
+import type { Article, Paginated, Ticket, User } from "../src/types";
 
 // The browser only ever talks to /api; these tests answer it in-process, so they need no backend.
 
@@ -43,6 +43,26 @@ export const TICKET: Ticket = {
   sla: null,
 };
 
+export const ARTICLE: Article = {
+  id: 7,
+  number: "KB-000007",
+  title: "Fix VPN error 809",
+  summary: "When the VPN drops with error 809.",
+  body: "Open Settings, then Network.\nForget the VPN profile and sign in again.",
+  keywords: "error 809",
+  status: "published",
+  visibility: "public",
+  category: null,
+  category_name: null,
+  service: null,
+  service_name: null,
+  author: 3,
+  author_name: "Tom Technician",
+  published_at: "2026-10-01T09:00:00Z",
+  created_at: "2026-10-01T09:00:00Z",
+  updated_at: "2026-10-01T09:00:00Z",
+};
+
 const page = <T>(results: T[]): Paginated<T> => ({ count: results.length, next: null, previous: null, results });
 
 // [method, path pattern, response body]. First match wins; anything unmatched fails the test.
@@ -54,7 +74,10 @@ const ROUTES: [string, RegExp, unknown][] = [
   ["GET", /^\/api\/help-requests\/[\w-]+\/comments\/$/, [
     { id: 1, author: 3, author_name: "Tom Technician", body: "Looking into it.", visibility: "public", created_at: "2026-10-20T10:00:00Z" },
   ]],
-  ["GET", /^\/api\/help-requests\/[\w-]+\/(attachments|approvals|tasks)\/$/, []],
+  ["GET", /^\/api\/help-requests\/[\w-]+\/(attachments|approvals|tasks|articles)\/$/, []],
+  ["POST", /^\/api\/help-requests\/[\w-]+\/articles\/$/, [ARTICLE]],
+  ["GET", /^\/api\/solutions\/articles\/$/, page([ARTICLE])],
+  ["GET", /^\/api\/solutions\/articles\/\d+\/$/, ARTICLE],
   ["GET", /^\/api\/queues\/$/, [{ id: 1, name: "My groups", description: "", filters: {}, ordering: "-created_at", visible_to_roles: [], position: 0, active: true }]],
   ["GET", /^\/api\/queues\/\d+\/tickets\/$/, page([TICKET])],
   ["GET", /^\/api\/approvals\/$/, page([])],

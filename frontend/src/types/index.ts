@@ -350,3 +350,25 @@ export type Change = {
   created_at: string;
   updated_at: string;
 };
+
+export type ArticleStatus = "draft" | "published" | "retired";
+
+export type Article = {
+  id: number;
+  number: string | null;
+  title: string;
+  summary: string;
+  body: string;
+  keywords: string;
+  status: ArticleStatus;
+  visibility: "public" | "internal";
+  category: number | null;
+  category_name: string | null;
+  service: number | null;
+  service_name: string | null;
+  author: number;
+  author_name: string | null;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+};

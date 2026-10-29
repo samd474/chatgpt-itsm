@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { mockApi, ROLE_USERS, TICKET } from "./mockApi";
+import { ARTICLE, mockApi, ROLE_USERS, TICKET } from "./mockApi";
 
 // Fail any test whose page throws or logs an error.
 let problems: string[] = [];
@@ -65,11 +65,32 @@ test("a technician can open a ticket from the queue", async ({ page }) => {
   await expect(page.getByText("Looking into it.")).toBeVisible();
 });
 
+test("a requester can search the knowledge base and read an article", async ({ page }) => {
+  await mockApi(page, ROLE_USERS.requester);
+  await page.goto("/knowledge");
+  await page.getByPlaceholder("Search articles, e.g. an error message").fill("809");
+  await page.getByText(ARTICLE.title).click();
+  await expect(page).toHaveURL(new RegExp(`/knowledge/${ARTICLE.id}$`));
+  await expect(page.getByText("Forget the VPN profile and sign in again.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Edit" })).toHaveCount(0);
+});
+
+test("a technician links an article and uses it as the resolution", async ({ page }) => {
+  await mockApi(page, ROLE_USERS.technician);
+  await page.goto(`/tech/tickets/${TICKET.public_id}`);
+  await page.getByLabel("Search published articles").fill("vpn");
+  await page.getByRole("button", { name: "Search" }).click();
+  await page.getByRole("button", { name: "Link" }).click();
+  await page.getByRole("button", { name: "Use as resolution" }).click();
+  await expect(page.getByLabel("New status")).toHaveValue("resolved");
+  await expect(page.getByPlaceholder("What fixed it? The requester sees this.")).toHaveValue(/Forget the VPN profile[\s\S]*KB-000007/);
+});
+
 // Every list screen renders for an administrator, who can reach all of them.
 const SCREENS = [
   "/portal", "/portal/incidents/new", "/portal/catalog", "/portal/equipment", "/approvals",
   "/tech/queue", "/assets", "/contracts", "/changes", "/changes/calendar", "/projects",
-  "/reports", "/audit", "/manage/users", "/manage/tickets", "/manage/settings",
+  "/reports", "/audit", "/manage/users", "/manage/tickets", "/manage/settings", "/knowledge", "/knowledge/new",
 ];
 for (const path of SCREENS) {
   test(`${path} renders`, async ({ page }) => {

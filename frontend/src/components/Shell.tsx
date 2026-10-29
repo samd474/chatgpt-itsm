@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  BookOpen,
   Boxes,
   CalendarClock,
   CheckSquare,
@@ -39,6 +40,7 @@ const SECTIONS: Section[] = [
       { to: "/portal", label: "My requests", icon: Inbox, end: true },
       { to: "/portal/incidents/new", label: "Report an issue", icon: PlusCircle },
       { to: "/portal/catalog", label: "Service catalog", icon: LayoutGrid },
+      { to: "/knowledge", label: "Knowledge base", icon: BookOpen, end: false },
       { to: "/portal/equipment", label: "My equipment", icon: Monitor },
       { to: "/approvals", label: "Approvals", icon: CheckSquare },
     ],

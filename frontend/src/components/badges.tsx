@@ -38,6 +38,7 @@ const GENERIC: Record<string, Tone> = {
   in_progress: "accent", in_repair: "amber", on_hold: "amber", blocked: "red", pending: "amber",
   expired: "red", terminated: "gray", retired: "gray", disposed: "gray", lost: "red", cancelled: "gray", rejected: "red",
   open: "blue", low: "green", medium: "amber", high: "red",
+  published: "green", public: "blue", internal: "amber",
 };
 
 export function Pill({ value }: { value: string }) {
