@@ -85,6 +85,21 @@ docker compose exec frontend npm run build
 ```
 
 For editor tooling outside Docker: `python -m venv .venv && .venv/bin/pip install -r backend/requirements-dev.txt`.
+Type-check the backend with `.venv/bin/basedpyright` from the repository root.
+
+### Backend dependencies
+
+`backend/requirements.in` lists the direct dependencies; `backend/requirements.txt` is the lock file
+(every package pinned) that Docker images and CI install. After editing `requirements.in`, or to pick up
+newer versions, regenerate the lock with pip-tools from `backend/`:
+
+```bash
+pip install pip-tools==7.6.2
+pip-compile --strip-extras --no-emit-index-url --output-file requirements.txt requirements.in            # after editing .in
+pip-compile --strip-extras --no-emit-index-url --output-file requirements.txt --upgrade requirements.in  # upgrade everything
+```
+
+CI fails if the lock is out of date with `requirements.in`.
 
 ## Production
 
