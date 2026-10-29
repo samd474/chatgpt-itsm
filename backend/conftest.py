@@ -11,6 +11,8 @@ from helprequests.models import SupportGroups
 def _isolate(settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path / "media"
     settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    # The production hasher is deliberately slow (~0.6s per user); tests create many users.
+    settings.PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
     cache.clear()
 
 
