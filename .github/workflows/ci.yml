@@ -80,6 +80,10 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
       - run: npm run build
+      - name: Smoke tests (production build, mocked API)
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e
 
   images:
     runs-on: ubuntu-latest
