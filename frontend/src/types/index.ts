@@ -383,6 +383,19 @@ export type RuleConditions = {
   impact?: number[];
   urgency?: number[];
   keywords?: string[];
+  status?: TicketStatus[];
+  changed?: RuleWatchedField[]; // update rules only
+};
+
+export type RuleWatchedField = "status" | "category" | "service" | "impact" | "urgency" | "priority" | "assignment_group" | "technician";
+export type RuleRunsOn = "created" | "updated" | "both";
+
+export type RulePreview = {
+  scanned: number;
+  matched: number;
+  ignored_conditions: string[];
+  tickets: { public_id: string; request_number: string | null; subject: string; status: TicketStatus;
+    changes: { field: string; from: string | number | null; to: string | number | null }[] }[];
 };
 
 export type RuleActions = {
@@ -402,6 +415,7 @@ export type TicketRule = {
   position: number;
   active: boolean;
   stop_processing: boolean;
+  runs_on: RuleRunsOn;
   conditions: RuleConditions;
   actions: RuleActions;
   created_at: string;

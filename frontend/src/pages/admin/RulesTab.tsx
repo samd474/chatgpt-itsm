@@ -2,14 +2,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { apiErrorMessage } from "../../api/client";
-import { deleteRule, listRules, saveRule, type RuleInput } from "../../api/rules";
+import { deleteRule, listRules, previewRule, saveRule, type RuleInput } from "../../api/rules";
 import { getCategories, getServices, getSupportGroups } from "../../api/tickets";
 import { MultiSelect } from "../../components/MultiSelect";
 import { Badge, Card, DataTable, Drawer, EmptyState, ErrorState, Field, LoadingState, Notice } from "../../components/ui";
-import type { Lookup, RuleActions, RuleConditions, TicketRule } from "../../types";
-import { LEVELS } from "../../utils/format";
+import type { Lookup, RuleActions, RuleConditions, RulePreview, RuleRunsOn, RuleWatchedField, TicketRule, TicketStatus } from "../../types";
+import { LEVELS, statusLabel } from "../../utils/format";
 
-const BLANK: RuleInput = { name: "", description: "", position: 0, active: true, stop_processing: false, conditions: {}, actions: {} };
+const BLANK: RuleInput = { name: "", description: "", position: 0, active: true, stop_processing: false, runs_on: "created", conditions: {}, actions: {} };
+const STATUSES: TicketStatus[] = ["new", "assigned", "in_progress", "pending_user_response", "resolved", "closed", "cancelled"];
+const WATCHED: { value: RuleWatchedField; label: string }[] = [
+  { value: "status", label: "Status" }, { value: "category", label: "Category" }, { value: "service", label: "Service" },
+  { value: "impact", label: "Impact" }, { value: "urgency", label: "Urgency" }, { value: "priority", label: "Priority" },
+  { value: "assignment_group", label: "Assignment group" }, { value: "technician", label: "Assignee" },
+];
+const TRIGGERS: Record<RuleRunsOn, string> = { created: "a ticket is created", updated: "a ticket is updated", both: "a ticket is created or updated" };
+const watchedName = (f: string) => WATCHED.find((w) => w.value === f)?.label.toLowerCase() ?? f;
 const levelName = (v: number) => LEVELS.find((l) => l.value === v)?.label.replace(/^\d - /, "") ?? String(v);
 
 // Drop empty values so the API only sees conditions and actions that were actually chosen.
@@ -29,6 +37,8 @@ function Summary({ rule }: { rule: TicketRule }) {
   const { groups, categories, services, name } = useLookups();
   const c = rule.conditions, a = rule.actions;
   const when = [
+    c.changed?.length && `its ${c.changed.map(watchedName).join(" or ")} changed`,
+    c.status?.length && `status is ${c.status.map((s) => statusLabel(s)).join(" or ")}`,
     c.request_type && `type is ${c.request_type}`,
     c.keywords?.length && `mentions ${c.keywords.map((k) => `"${k}"`).join(" or ")}`,
     c.category?.length && `category is ${c.category.map((id) => name(categories, id)).join(" or ")}`,
@@ -45,7 +55,8 @@ function Summary({ rule }: { rule: TicketRule }) {
     a.notify_group && `notify ${name(groups, a.notify_group)}`,
     a.add_note && "add a private note",
   ].filter(Boolean);
-  return <span className="muted">When {when.length ? when.join(" and ") : "any ticket is created"}: {then.join(", ")}{rule.stop_processing && "; then stop"}</span>;
+  const trigger = TRIGGERS[rule.runs_on ?? "created"];
+  return <span className="muted">When {trigger}{when.length > 0 && ` and ${when.join(" and ")}`}: {then.join(", ")}{rule.stop_processing && "; then stop"}</span>;
 }
 
 function Select({ label, value, options, onChange, placeholder = "Don't change" }: {
@@ -68,13 +79,20 @@ function RuleEditor({ rule, onClose, onSaved }: { rule: TicketRule | null; onClo
   const setAction = <K extends keyof RuleActions>(key: K, value: RuleActions[K]) => setForm((f) => ({ ...f, actions: { ...f.actions, [key]: value } }));
   const opts = (rows: Lookup[]) => rows.map((r) => ({ value: r.id, label: r.name }));
   const levelOpts = LEVELS.map((l) => ({ value: l.value, label: l.label }));
-  const save = useMutation({
-    mutationFn: () => saveRule(rule?.id ?? null, {
-      ...form,
-      conditions: clean({ ...form.conditions, keywords: keywords.split("\n").map((k) => k.trim()).filter(Boolean) }),
-      actions: clean(form.actions),
+  const payload = (): Pick<RuleInput, "conditions" | "actions"> => ({
+    conditions: clean({
+      ...form.conditions,
+      keywords: keywords.split("\n").map((k) => k.trim()).filter(Boolean),
+      // "changed" only means something for rules that run on updates.
+      changed: form.runs_on === "created" ? undefined : form.conditions.changed,
     }),
-    onSuccess: onSaved,
+    actions: clean(form.actions),
+  });
+  const save = useMutation({ mutationFn: () => saveRule(rule?.id ?? null, { ...form, ...payload() }), onSuccess: onSaved });
+  const [preview, setPreview] = useState<RulePreview | null>(null);
+  const runPreview = useMutation({
+    mutationFn: () => { const p = payload(); return previewRule(p.conditions, p.actions); },
+    onSuccess: setPreview,
   });
   const remove = useMutation({ mutationFn: () => deleteRule(rule!.id), onSuccess: onSaved });
   const c = form.conditions, a = form.actions;
@@ -83,6 +101,7 @@ function RuleEditor({ rule, onClose, onSaved }: { rule: TicketRule | null; onClo
     <Drawer title={rule ? "Edit rule" : "New rule"} onClose={onClose} footer={<>
       {rule && <button className="btn btn-ghost" disabled={remove.isPending} onClick={() => remove.mutate()}>Delete</button>}
       <span className="spacer" />
+      <button className="btn btn-secondary" disabled={runPreview.isPending} onClick={() => runPreview.mutate()}>Preview</button>
       <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
       <button className="btn btn-primary" disabled={!form.name.trim() || save.isPending} onClick={() => save.mutate()}>Save</button>
     </>}>
@@ -97,7 +116,22 @@ function RuleEditor({ rule, onClose, onSaved }: { rule: TicketRule | null; onClo
           </div>
         </div>
 
-        <h3>When a new ticket matches all of</h3>
+        <Field label="Runs">
+          <select className="select" aria-label="Runs" value={form.runs_on} onChange={(e) => setForm((f) => ({ ...f, runs_on: e.target.value as RuleRunsOn }))}>
+            <option value="created">When a ticket is created</option><option value="updated">When a ticket is updated</option><option value="both">Both</option>
+          </select>
+        </Field>
+
+        <h3>When the ticket matches all of</h3>
+        {form.runs_on !== "created" && (
+          <Field label="On update, only when this changed" hint={form.runs_on === "updated" ? "Required, so the rule doesn't fire on every edit." : "Ignored when the ticket is created."}>
+            <MultiSelect options={WATCHED} value={c.changed ?? []} onChange={(v) => setCondition("changed", v as RuleWatchedField[])} placeholder="Pick fields" />
+          </Field>
+        )}
+        <Field label="Status is any of">
+          <MultiSelect options={STATUSES.map((s) => ({ value: s, label: statusLabel(s) }))} value={c.status ?? []}
+            onChange={(v) => setCondition("status", v as TicketStatus[])} placeholder="Any status" />
+        </Field>
         <Field label="Type">
           <select className="select" value={c.request_type ?? ""} onChange={(e) => setCondition("request_type", (e.target.value || undefined) as RuleConditions["request_type"])}>
             <option value="">Any</option><option value="incident">Incident</option><option value="request">Request</option>
@@ -125,13 +159,38 @@ function RuleEditor({ rule, onClose, onSaved }: { rule: TicketRule | null; onClo
         <Field label="Add a private note" hint="Staff only; requesters never see it.">
           <textarea className="textarea" rows={3} value={a.add_note ?? ""} onChange={(e) => setAction("add_note", e.target.value)} />
         </Field>
-        {(save.isError || remove.isError) && <Notice tone="error">{apiErrorMessage(save.error ?? remove.error)}</Notice>}
+        {(save.isError || remove.isError || runPreview.isError) && <Notice tone="error">{apiErrorMessage(save.error ?? remove.error ?? runPreview.error)}</Notice>}
+        {preview && <PreviewResult preview={preview} />}
       </div>
     </Drawer>
   );
 }
 
-/** Ticket automation: ordered rules that run once when a ticket is created. */
+function PreviewResult({ preview }: { preview: RulePreview }) {
+  const describe = (c: RulePreview["tickets"][number]["changes"][number]) =>
+    c.field === "notify" ? `email ${c.to}` : c.field === "note" ? "add a private note"
+      : `${c.field.replace("_", " ")}: ${c.from ?? "none"} → ${c.to ?? "none"}`;
+  return (
+    <div className="stack" style={{ gap: 8 }} aria-live="polite">
+      <h3>Preview</h3>
+      <p className="muted">Would match {preview.matched} of the last {preview.scanned} tickets, judged on their current values. Nothing was changed.</p>
+      {preview.ignored_conditions.length > 0 && <Notice tone="info">"Changed" conditions can't be judged after the fact, so the preview ignores them.</Notice>}
+      <div className="list">
+        {preview.tickets.map((t) => (
+          <div className="list-item" key={t.public_id} style={{ alignItems: "flex-start" }}>
+            <span className="subtle">{t.request_number}</span>
+            <span className="stack" style={{ gap: 2 }}>
+              <span>{t.subject}</span>
+              <span className="subtle">{t.changes.length ? t.changes.map(describe).join(" · ") : "Already matches; nothing would change"}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Ticket automation: ordered rules that run when tickets are created and/or updated. */
 export function RulesTab() {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<TicketRule | "new" | null>(null);
@@ -141,8 +200,9 @@ export function RulesTab() {
   return (
     <Card title="Automation rules" flush actions={<button className="btn btn-primary btn-sm" onClick={() => setEditing("new")}><Plus />New rule</button>}>
       <div className="card-body muted">
-        Rules run in order when a ticket is created. Every matching rule applies its actions (later rules win), unless a rule says to stop.
-        They run after templates, so they can override a template's routing.
+        Rules run in order when a ticket is created or updated, as each rule chooses. Every matching rule applies its actions
+        (later rules win), unless a rule says to stop. They run after templates, so they can override a template's routing,
+        and a rule's own changes never trigger other update rules.
       </div>
       {rules.isPending && <LoadingState rows={3} />}
       {rules.isError && <div className="card-body"><ErrorState message={apiErrorMessage(rules.error)} /></div>}
