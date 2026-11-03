@@ -35,10 +35,13 @@ django==6.1.2
     #   -r requirements.in
     #   django-cors-headers
     #   django-filter
+    #   django-otp
     #   djangorestframework
 django-cors-headers==4.9.0
     # via -r requirements.in
 django-filter==26.2
+    # via -r requirements.in
+django-otp==1.7.5
     # via -r requirements.in
 djangorestframework==3.18.3
     # via -r requirements.in
@@ -67,6 +70,8 @@ python-magic==0.4.27
 redis==8.1.0
     # via -r requirements.in
 requests==2.34.2
+    # via -r requirements.in
+segno==1.6.6
     # via -r requirements.in
 six==1.17.0
     # via python-dateutil

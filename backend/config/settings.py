@@ -49,6 +49,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_otp",
+    "django_otp.plugins.otp_totp",
+    "django_otp.plugins.otp_static",
     "rest_framework",
     "django_filters",
     "corsheaders",
@@ -69,6 +72,11 @@ INSTALLED_APPS = [
 
 AUTHENTICATION_BACKENDS = ["core.auth_backends.EnabledUserBackend"]
 
+# Two-factor authentication (accounts/two_factor.py). Users in these roles must set up an
+# authenticator app before they can use anything else; superusers count as Administrators.
+TWO_FACTOR_REQUIRED_ROLES = [r.strip() for r in env("TWO_FACTOR_REQUIRED_ROLES", "Administrator").split(",") if r.strip()]
+OTP_TOTP_ISSUER = env("OTP_TOTP_ISSUER", "ITSM Service Desk")
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -79,6 +87,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django_otp.middleware.OTPMiddleware",
+    "accounts.middleware.TwoFactorEnforcementMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]

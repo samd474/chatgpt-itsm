@@ -1,10 +1,13 @@
 from django.contrib import admin
+from django_otp.admin import OTPAdminSite
 from django.urls import include, path
 
 from core.urls import admin_patterns, public_patterns
 
 from . import health
 
+# Django admin requires a session verified with two-factor authentication (django-otp).
+admin.site.__class__ = OTPAdminSite
 admin.site.site_header = "ITSM administration"
 admin.site.site_title = "ITSM administration"
 admin.site.index_title = "Configuration"
