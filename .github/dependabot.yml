@@ -1,0 +1,36 @@
+# Automated dependency updates. Security fixes arrive as their own PRs as soon as an advisory is
+# published (with Dependabot security updates enabled in the repo settings); routine updates come
+# weekly, minor and patch versions grouped into one PR per ecosystem. Major versions stay separate
+# so each gets its own review. CI tests every PR as usual.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  # requirements.in / requirements-dev.in are compiled to lock files by pip-tools; Dependabot
+  # recognises the pip-compile headers and regenerates the locks with the same options.
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      pip-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
