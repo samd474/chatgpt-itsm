@@ -76,13 +76,21 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
             data["help_requests"] = list(visible.values_list("public_id", flat=True))
         return data
 
+    @staticmethod
+    def _hidden_links(instance, viewer):
+        """Linked tickets the viewer can't see.
+
+        Read from the database, not `instance.help_requests`: the viewset prefetches that relation
+        through visible_HelpRequests, so it would never contain a hidden ticket.
+        """
+        linked = HelpRequests.objects.filter(changes=instance)
+        return list(linked.exclude(pk__in=visible_HelpRequests(viewer, linked).values("pk")))
+
     def update(self, instance, validated_data):
         viewer = self._viewer()
         if "help_requests" in validated_data and viewer is not None:
             # The editor never sees tickets outside their scope, so keep those links rather than drop them.
-            linked = instance.help_requests.all()
-            hidden = linked.exclude(pk__in=visible_HelpRequests(viewer, linked).values("pk"))
-            validated_data["help_requests"] = [*validated_data["help_requests"], *hidden]
+            validated_data["help_requests"] = [*validated_data["help_requests"], *self._hidden_links(instance, viewer)]
         instance = super().update(instance, validated_data)
         # The list annotation predates this save; the window or assets may have changed.
         instance.__dict__.pop("conflict_total", None)

@@ -278,3 +278,23 @@ def test_change_serializer_keeps_hidden_links_without_a_prefetch(world, rf):
     assert {t.subject for t in change.help_requests.all()} == {"T2", "T3"}
     # The response after the save skips the prefetch too, and still hides T2.
     assert {str(public_id) for public_id in serializer.data["help_requests"]} == _public_ids(world, ["T3"])
+
+
+def test_hidden_links_are_found_even_when_the_relation_is_prefetched_scoped(world):
+    """The API prefetches only visible tickets; the guard must still see the hidden link (T2).
+
+    Django 5.2's set() happened to compute removals from that same scoped prefetch, which masked a
+    guard that read the prefetched relation; Django 6.1's set() reads the database and would drop T2.
+    """
+    from django.db.models import Prefetch
+
+    from changes.models import ChangeRequest
+    from changes.serializers import ChangeRequestSerializer
+    from helprequests.access import visible_HelpRequests
+
+    member = world["people"]["member"]
+    change = _change_linked_to(world, "T1", "T2")
+    scoped = Prefetch("help_requests", queryset=visible_HelpRequests(member, HelpRequests.objects.all()))
+    instance = ChangeRequest.objects.prefetch_related(scoped).get(pk=change.pk)
+    assert {t.subject for t in instance.help_requests.all()} == {"T1"}  # what the viewset's instance holds
+    assert [t.subject for t in ChangeRequestSerializer._hidden_links(instance, member)] == ["T2"]
