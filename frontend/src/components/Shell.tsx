@@ -18,6 +18,7 @@ import {
   ScrollText,
   Settings,
   ShieldCheck,
+  Timer,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -69,6 +70,7 @@ const SECTIONS: Section[] = [
     show: (u) => hasRole(u, "Manager", "Administrator", "Auditor"),
     items: [
       { to: "/reports", label: "Reports", icon: BarChart3, show: (u) => hasRole(u, "Manager", "Administrator") },
+      { to: "/reports/sla", label: "SLA dashboard", icon: Timer, show: (u) => hasRole(u, "Manager", "Administrator") },
       { to: "/audit", label: "Audit log", icon: ScrollText, show: (u) => hasRole(u, "Auditor", "Administrator") },
     ],
   },

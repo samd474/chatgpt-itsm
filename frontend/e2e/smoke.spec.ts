@@ -227,11 +227,39 @@ test("notes added by automation are labelled as such", async ({ page }) => {
   await expect(page.locator(".entry-head strong", { hasText: "Automation" })).toBeVisible();
 });
 
+test("the SLA dashboard shows what needs attention and filters by period", async ({ page }) => {
+  await mockApi(page, ROLE_USERS.admin);
+  await page.goto("/reports");
+  await page.getByRole("link", { name: "SLA dashboard" }).first().click();
+  await expectPage(page, "/reports/sla");
+
+  const attention = page.getByRole("table").first();
+  await expect(attention.getByRole("row")).toHaveCount(3);  // header + breached + at risk
+  await expect(attention.getByRole("row").nth(1)).toContainText("Breached");
+  await expect(attention.getByRole("row").nth(1)).toContainText("Resolution was due");
+  await expect(attention.getByRole("row").nth(2)).toContainText("At risk");
+  await expect(page.getByText("91.7%")).toBeVisible();
+
+  // The chart reads out each day from the keyboard, and has a table view.
+  const chart = page.getByRole("img", { name: /Resolutions per day/ });
+  await chart.focus();
+  await expect(page.getByRole("status")).toContainText("met");
+  await page.getByText("Show as table").click();
+  await expect(page.locator(".chart-table tbody tr")).toHaveCount(30);
+
+  const refetch = page.waitForRequest((r) => r.url().includes("/api/reports/sla/") && r.url().includes("days=7"));
+  await page.getByRole("tab", { name: "Last 7 days" }).click();
+  await refetch;
+
+  await attention.getByRole("link", { name: /INC-000001/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/tech/tickets/${TICKET.public_id}$`));
+});
+
 // Every list screen renders for an administrator, who can reach all of them.
 const SCREENS = [
   "/portal", "/portal/incidents/new", "/portal/catalog", "/portal/equipment", "/approvals",
   "/tech/queue", "/assets", "/contracts", "/changes", "/changes/calendar", "/projects",
-  "/reports", "/audit", "/manage/users", "/manage/tickets", "/manage/settings", "/knowledge", "/knowledge/new",
+  "/reports", "/reports/sla", "/audit", "/manage/users", "/manage/tickets", "/manage/settings", "/knowledge", "/knowledge/new",
 ];
 for (const path of SCREENS) {
   test(`${path} renders`, async ({ page }) => {

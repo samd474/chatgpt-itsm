@@ -15,12 +15,12 @@ from helprequests.access import visible_HelpRequests
 from helprequests.models import HelpRequests
 
 from core.permissions import IsAdministrator
-from core.schema import extend_schema
+from core.schema import OpenApiParameter, extend_schema
 
-from . import imports
+from . import imports, sla_report
 from .audit import write_audit_event
 from .models import AuditEvent, ExportJob, ImportJob
-from .serializers import AuditEventSerializer, ExportJobSerializer, ImportJobSerializer, ServiceDeskReportSerializer
+from .serializers import AuditEventSerializer, ExportJobSerializer, ImportJobSerializer, ServiceDeskReportSerializer, SLAReportSerializer
 
 
 class IsAuditReader(BasePermission):
@@ -68,6 +68,31 @@ def service_desk_report(request):
         "by_status": {row["status"]: row["n"] for row in tickets.values("status").annotate(n=Count("id")).order_by("status")},
         "backlog_by_age": age_buckets,
     })
+
+
+@extend_schema(
+    parameters=[
+        OpenApiParameter("days", int, enum=list(sla_report.PERIODS), description="Look-back period for the trend (default 30)."),
+        OpenApiParameter("group", int, description="Only tickets assigned to this support group."),
+    ],
+    responses=SLAReportSerializer,
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, IsReportReader])
+def sla_dashboard(request):
+    try:
+        days = int(request.query_params.get("days", 30))
+    except ValueError:
+        days = 0
+    if days not in sla_report.PERIODS:
+        raise ValidationError({"days": f"Choose one of {', '.join(map(str, sla_report.PERIODS))}."})
+    tickets = visible_HelpRequests(request.user, HelpRequests.objects.all())
+    group = request.query_params.get("group")
+    if group:
+        if not group.isdigit():
+            raise ValidationError({"group": "Must be a support group id."})
+        tickets = tickets.filter(assignment_group_id=int(group))
+    return Response(SLAReportSerializer(sla_report.build(tickets, days=days)).data)
 
 
 class ImportJobViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):

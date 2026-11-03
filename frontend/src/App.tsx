@@ -20,6 +20,7 @@ const ArticlePage = lazy(() => import("./pages/knowledge/ArticlePage").then((m) 
 const ApprovalsPage = lazy(() => import("./pages/approvals/ApprovalsPage").then((m) => ({ default: m.ApprovalsPage })));
 const QueuePage = lazy(() => import("./pages/technician/QueuePage").then((m) => ({ default: m.QueuePage })));
 const TechnicianTicketPage = lazy(() => import("./pages/technician/TechnicianTicketPage").then((m) => ({ default: m.TechnicianTicketPage })));
+const SlaDashboardPage = lazy(() => import("./pages/reports/SlaDashboardPage").then((m) => ({ default: m.SlaDashboardPage })));
 const ReportsPage = lazy(() => import("./pages/reports/ReportsPage").then((m) => ({ default: m.ReportsPage })));
 const AuditPage = lazy(() => import("./pages/audit/AuditPage").then((m) => ({ default: m.AuditPage })));
 const UsersPage = lazy(() => import("./pages/admin/UsersPage").then((m) => ({ default: m.UsersPage })));
@@ -83,6 +84,7 @@ export default function App() {
 
           <Route element={<RequireRole allowed={["Manager", "Administrator"]} />}>
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/reports/sla" element={<SlaDashboardPage />} />
           </Route>
           <Route element={<RequireRole allowed={["Auditor", "Administrator"]} />}>
             <Route path="/audit" element={<AuditPage />} />

@@ -1,5 +1,7 @@
 import { api } from "./client";
-import type { AuditEvent, ImportJob, Paginated } from "../types";
+import type { AuditEvent, ImportJob, Paginated, SlaPeriodDays, SlaReport } from "../types";
+
+export type { SlaAttention, SlaBreakdown, SlaNow, SlaPeriod, SlaPeriodDays, SlaReport, SlaTrendDay } from "../types";
 
 export type ServiceDeskReport = {
   open_tickets: number;
@@ -14,6 +16,10 @@ export type ServiceDeskReport = {
 export async function getServiceDeskReport(): Promise<ServiceDeskReport> {
   const response = await api.get<ServiceDeskReport>("/reports/service-desk/");
   return response.data;
+}
+
+export async function getSlaReport(params: { days: SlaPeriodDays; group?: number }): Promise<SlaReport> {
+  return (await api.get<SlaReport>("/reports/sla/", { params })).data;
 }
 
 export type AuditParams = { page?: number; activity_type?: string; object_id?: string; request_id?: string };
