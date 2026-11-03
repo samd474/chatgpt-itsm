@@ -54,6 +54,7 @@ session and CSRF cookies behave the same way they will behind NGINX in productio
 | Endpoint | Purpose |
 |----------|---------|
 | `GET /api/auth/csrf/`, `POST /api/auth/login/`, `POST /api/auth/logout/`, `GET /api/auth/me/` | Session auth |
+| `POST /api/auth/2fa/verify/`, `GET /api/auth/2fa/`, `POST /api/auth/2fa/{setup,confirm,recovery-codes,disable}/` | Two-factor sign-in and enrolment |
 | `GET/POST /api/help-requests/`, `GET/PATCH /api/help-requests/{public_id}/` | Scoped tickets (no DELETE) |
 | `POST /api/help-requests/{id}/transition/` | Lifecycle changes (timestamps, SLA, audit, notifications) |
 | `GET/POST /api/help-requests/{id}/comments/` | Public replies and private notes |
@@ -139,6 +140,11 @@ CI fails if either lock is out of date with its `.in` file.
   serves `/media` directly.
 - Set `DJANGO_DEBUG=0`, real `DJANGO_ALLOWED_HOSTS` / `DJANGO_CSRF_TRUSTED_ORIGINS`, SMTP settings, and
   raise `DJANGO_HSTS_SECONDS` only once HTTPS works.
+- Two-factor authentication: anyone can turn it on from **Sign-in security** in the sidebar. Roles listed in
+  `TWO_FACTOR_REQUIRED_ROLES` (default `Administrator`, which includes superusers) must set it up before
+  they can do anything else, and `/admin/` always needs a session verified with a code. Set
+  `TWO_FACTOR_REQUIRED_ROLES=` (empty) to make it optional for everyone. A user who loses their phone and
+  their recovery codes can be reset by deleting their devices in Django admin (OTP TOTP / static devices).
 - Backups: `scripts/backup.sh` (pg_dump custom format) and `scripts/restore-test.sh` to prove a restore.
   Back up the `media_data` volume separately.
 
