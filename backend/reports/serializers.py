@@ -15,7 +15,7 @@ class AuditEventSerializer(serializers.ModelSerializer):
                   "source_ip", "before", "after", "metadata", "created_at"]
         read_only_fields = fields
 
-    def get_actor_name(self, obj):
+    def get_actor_name(self, obj) -> str | None:
         user = obj.initiated_by
         return (user.get_full_name() or user.get_username()) if user else None
 
@@ -34,3 +34,15 @@ class ExportJobSerializer(serializers.ModelSerializer):
         model = ExportJob
         fields = ["public_id", "kind", "params", "state", "row_count", "error", "created_at", "finished_at", "expires_at"]
         read_only_fields = fields
+
+
+class ServiceDeskReportSerializer(serializers.Serializer):
+    """Shape of GET /api/reports/service-desk/ (for the OpenAPI schema)."""
+
+    open_tickets = serializers.IntegerField()
+    unassigned = serializers.IntegerField()
+    sla_at_risk = serializers.IntegerField()
+    sla_breached = serializers.IntegerField()
+    by_priority = serializers.DictField(child=serializers.IntegerField())
+    by_status = serializers.DictField(child=serializers.IntegerField())
+    backlog_by_age = serializers.DictField(child=serializers.IntegerField())

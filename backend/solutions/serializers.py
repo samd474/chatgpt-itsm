@@ -26,7 +26,7 @@ class ArticleSerializer(serializers.ModelSerializer):
                   "created_at", "updated_at", "helpful_count", "not_helpful_count", "my_feedback"]
         read_only_fields = ["id", "number", "author", "published_at", "created_at", "updated_at"]
 
-    def get_author_name(self, obj):
+    def get_author_name(self, obj) -> str | None:
         return _name(obj.author)
 
     def to_representation(self, instance):

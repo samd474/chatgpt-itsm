@@ -1,8 +1,11 @@
+from typing import Any
+
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from accounts.roles import is_staff_user
 from core.customfields import filter_for_requester
+from core.schema import extend_schema_field
 
 from . import queues
 from .models import (
@@ -23,6 +26,18 @@ User = get_user_model()
 
 def _name(user):
     return (user.get_full_name() or user.get_username()) if user else None
+
+
+class SlaSummarySerializer(serializers.Serializer):
+    """Shape of a ticket's `sla` (for the OpenAPI schema)."""
+
+    policy = serializers.CharField()
+    response_due_at = serializers.DateTimeField()
+    resolution_due_at = serializers.DateTimeField()
+    response_breached = serializers.BooleanField()
+    resolution_breached = serializers.BooleanField()
+    paused = serializers.BooleanField()
+    warning = serializers.BooleanField()
 
 
 class HelpRequestsReadSerializer(serializers.ModelSerializer):
@@ -71,24 +86,25 @@ class HelpRequestsReadSerializer(serializers.ModelSerializer):
         )
         read_only_fields = fields
 
-    def get_custom_fields(self, obj):
+    def get_custom_fields(self, obj) -> dict[str, Any]:
         request = self.context.get("request")
         if request is not None and not is_staff_user(request.user):
             return filter_for_requester(obj.custom_fields)
         return obj.custom_fields
 
-    def get_open_tasks(self, obj):
+    def get_open_tasks(self, obj) -> int:
         annotated = getattr(obj, "open_task_count", None)
         if annotated is not None:
             return annotated
         return obj.tasks.filter(status__in=FulfillmentTask.OPEN_STATUSES).count()
 
-    def get_requester_name(self, obj):
+    def get_requester_name(self, obj) -> str | None:
         return _name(obj.requester)
 
-    def get_technician_name(self, obj):
+    def get_technician_name(self, obj) -> str | None:
         return _name(obj.technician)
 
+    @extend_schema_field(SlaSummarySerializer(allow_null=True))
     def get_sla(self, obj):
         sla = getattr(obj, "sla", None)
         if sla is None:
@@ -166,7 +182,7 @@ class CommentSerializer(serializers.ModelSerializer):
         fields = ["id", "author", "author_name", "body", "visibility", "created_at"]
         read_only_fields = ["id", "author", "author_name", "created_at"]
 
-    def get_author_name(self, obj):
+    def get_author_name(self, obj) -> str | None:
         return _name(obj.author)
 
 
@@ -178,7 +194,7 @@ class AttachmentSerializer(serializers.ModelSerializer):
         fields = ["id", "original_name", "content_type", "size_bytes", "sha256", "uploaded_by", "uploaded_by_name", "created_at"]
         read_only_fields = fields
 
-    def get_uploaded_by_name(self, obj):
+    def get_uploaded_by_name(self, obj) -> str | None:
         return _name(obj.uploaded_by)
 
 
@@ -194,7 +210,7 @@ class ApprovalSerializer(serializers.ModelSerializer):
                   "state", "comment", "decided_at", "created_at"]
         read_only_fields = fields
 
-    def get_approver_name(self, obj):
+    def get_approver_name(self, obj) -> str | None:
         return _name(obj.approver)
 
 
@@ -228,8 +244,8 @@ class UserLookupSerializer(serializers.ModelSerializer):
         model = User
         fields = ["id", "username", "name"]
 
-    def get_name(self, obj):
-        return _name(obj)
+    def get_name(self, obj) -> str:
+        return obj.get_full_name() or obj.get_username()
 
 
 class FulfillmentTaskSerializer(serializers.ModelSerializer):
@@ -243,7 +259,7 @@ class FulfillmentTaskSerializer(serializers.ModelSerializer):
                   "assignee_name", "status", "position", "created_at", "completed_at"]
         read_only_fields = ["id", "created_at", "completed_at"]
 
-    def get_assignee_name(self, obj):
+    def get_assignee_name(self, obj) -> str | None:
         return _name(obj.assignee)
 
     def validate_assignee(self, value):

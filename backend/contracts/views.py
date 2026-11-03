@@ -36,7 +36,10 @@ class ContractViewSet(AuditedModelViewSet):
 
     def get_serializer(self, *args, **kwargs):
         kwargs.setdefault("context", self.get_serializer_context())
-        kwargs["show_financials"] = has_role(self.request.user, MANAGER, ADMINISTRATOR, AUDITOR)
+        # Schema generation has no user: document the full shape (the financial fields are marked
+        # optional in the schema, since technicians don't get them).
+        kwargs["show_financials"] = getattr(self, "swagger_fake_view", False) or has_role(
+            self.request.user, MANAGER, ADMINISTRATOR, AUDITOR)
         return ContractSerializer(*args, **kwargs)
 
     def perform_create(self, serializer):

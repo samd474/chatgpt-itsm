@@ -15,11 +15,12 @@ from helprequests.access import visible_HelpRequests
 from helprequests.models import HelpRequests
 
 from core.permissions import IsAdministrator
+from core.schema import extend_schema
 
 from . import imports
 from .audit import write_audit_event
 from .models import AuditEvent, ExportJob, ImportJob
-from .serializers import AuditEventSerializer, ExportJobSerializer, ImportJobSerializer
+from .serializers import AuditEventSerializer, ExportJobSerializer, ImportJobSerializer, ServiceDeskReportSerializer
 
 
 class IsAuditReader(BasePermission):
@@ -43,6 +44,7 @@ class AuditEventViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ["created_at"]
 
 
+@extend_schema(responses=ServiceDeskReportSerializer)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsReportReader])
 def service_desk_report(request):
@@ -108,6 +110,7 @@ class ImportJobViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.Re
 
 class ExportJobViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     """A user only ever sees and downloads their own export files."""
+    queryset = ExportJob.objects.none()  # for the schema generator; get_queryset() scopes real requests
 
     serializer_class = ExportJobSerializer
     lookup_field = "public_id"

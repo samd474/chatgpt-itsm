@@ -25,6 +25,7 @@ ChangeAccess = role_permission(read_roles=(TECHNICIAN, MANAGER, ADMINISTRATOR, A
 
 
 class ChangeRequestViewSet(AuditedModelViewSet):
+    queryset = ChangeRequest.objects.none()  # for the schema generator; get_queryset() scopes real requests
     serializer_class = ChangeRequestSerializer
     permission_classes = [IsAuthenticated, ChangeAccess]
     audit_prefix = "change"
@@ -107,6 +108,7 @@ class ChangeRequestViewSet(AuditedModelViewSet):
 
 class ChangeApprovalViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     """Change approvals assigned to the current user."""
+    queryset = ChangeApproval.objects.none()  # for the schema generator; get_queryset() scopes real requests
 
     serializer_class = ChangeApprovalSerializer
     filterset_fields = ["state"]

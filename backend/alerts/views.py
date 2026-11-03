@@ -16,10 +16,10 @@ class NotificationTemplateSerializer(serializers.ModelSerializer):
         fields = ["id", "event_type", "subject", "body", "enabled", "default_subject", "default_body", "updated_at"]
         read_only_fields = ["id", "updated_at"]
 
-    def get_default_subject(self, obj):
+    def get_default_subject(self, obj) -> str:
         return TEMPLATES.get(obj.event_type, ("", ""))[0]
 
-    def get_default_body(self, obj):
+    def get_default_body(self, obj) -> str:
         return TEMPLATES.get(obj.event_type, ("", ""))[1]
 
     def validate_event_type(self, value):

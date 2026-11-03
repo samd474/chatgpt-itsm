@@ -129,7 +129,7 @@ class RoleSerializer(serializers.ModelSerializer):
         model = Group
         fields = ["id", "name", "built_in", "member_count"]
 
-    def get_built_in(self, obj):
+    def get_built_in(self, obj) -> bool:
         return obj.name in BUILT_IN_ROLES
 
 

@@ -1,14 +1,38 @@
 from django.contrib.auth import authenticate, login, logout
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import SimpleRateThrottle
 
+from core.schema import extend_schema
 from reports.audit import write_audit_event
+
+
+# Response/request shapes, for the OpenAPI schema the frontend's types are checked against.
+class CsrfResponse(serializers.Serializer):
+    csrfToken = serializers.CharField()
+
+
+class LoginRequest(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField()
+
+
+class LoginResponse(serializers.Serializer):
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+
+
+class CurrentUser(serializers.Serializer):
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+    name = serializers.CharField()
+    groups = serializers.ListField(child=serializers.CharField())
+    is_superuser = serializers.BooleanField()
 
 
 class LoginThrottle(SimpleRateThrottle):
@@ -21,6 +45,7 @@ class LoginThrottle(SimpleRateThrottle):
         return self.cache_format % {"scope": self.scope, "ident": f"{self.get_ident(request)}:{username}"}
 
 
+@extend_schema(responses=CsrfResponse)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 @ensure_csrf_cookie
@@ -28,6 +53,7 @@ def csrf(request):
     return Response({"csrfToken": get_token(request)})
 
 
+@extend_schema(request=LoginRequest, responses=LoginResponse)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 @throttle_classes([LoginThrottle])
@@ -53,6 +79,7 @@ def login_view(request):
     return Response({"id": user.pk, "username": user.get_username()})
 
 
+@extend_schema(request=None, responses={204: None})
 @api_view(["POST"])
 def logout_view(request):
     write_audit_event(request, "auth.logout", obj=request.user)
@@ -60,6 +87,7 @@ def logout_view(request):
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(responses=CurrentUser)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me(request):

@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from accounts.roles import ADMINISTRATOR, AUDITOR, MANAGER, STAFF_ROLES, TECHNICIAN, has_role, is_staff_user
 from core.numbering import assign_number
 from core.permissions import role_permission
+from core.schema import extend_schema
 from core.viewsets import AuditedModelViewSet
 from helprequests.access import visible_HelpRequests
 from helprequests.models import HelpRequests
@@ -52,6 +53,7 @@ class AssetViewSet(AuditedModelViewSet):
 
     No DELETE: assets are retired or disposed through their status so history is kept.
     """
+    queryset = Asset.objects.none()  # for the schema generator; get_queryset() scopes real requests
 
     permission_classes = [IsAuthenticated, AssetReadWrite]
     http_method_names = ["get", "post", "patch", "head", "options"]
@@ -69,6 +71,8 @@ class AssetViewSet(AuditedModelViewSet):
         return qs.filter(assigned_to=user)
 
     def get_serializer_class(self):
+        if getattr(self, "swagger_fake_view", False):  # schema generation: document the staff view
+            return AssetSerializer
         user = self.request.user
         if is_staff_user(user) or has_role(user, AUDITOR):
             return AssetSerializer
@@ -85,6 +89,8 @@ class AssetViewSet(AuditedModelViewSet):
         except IntegrityError:
             raise ValidationError({"asset_tag": "That asset tag is already in use."})
 
+    @extend_schema(methods=["GET"], responses=AssetRelationshipSerializer(many=True))
+    @extend_schema(methods=["POST"], request=AssetRelationshipSerializer, responses={201: AssetRelationshipSerializer})
     @action(detail=True, methods=["get", "post"])
     def relationships(self, request, pk=None):
         asset = self.get_object()

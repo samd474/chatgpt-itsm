@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from core.customfields import clean_custom_fields
+from core.schema import extend_schema_field
 
 from .models import Milestone, Project, ProjectMember, ProjectTask
 
@@ -20,8 +21,16 @@ class ProjectMemberSerializer(serializers.ModelSerializer):
         model = ProjectMember
         fields = ["user", "name", "role"]
 
-    def get_name(self, obj):
-        return _name(obj.user)
+    def get_name(self, obj) -> str:
+        return obj.user.get_full_name() or obj.user.get_username()
+
+
+class ProgressSerializer(serializers.Serializer):
+    """Shape of a project's `progress` (for the OpenAPI schema)."""
+
+    total = serializers.IntegerField()
+    done = serializers.IntegerField()
+    percent = serializers.IntegerField()
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -37,9 +46,10 @@ class ProjectSerializer(serializers.ModelSerializer):
                   "target_date", "completed_at", "budget", "custom_fields", "progress", "created_at", "updated_at"]
         read_only_fields = ["id", "completed_at", "created_at", "updated_at"]
 
-    def get_manager_name(self, obj):
-        return _name(obj.manager)
+    def get_manager_name(self, obj) -> str:
+        return obj.manager.get_full_name() or obj.manager.get_username()
 
+    @extend_schema_field(ProgressSerializer)
     def get_progress(self, obj):
         total = getattr(obj, "task_total", None)
         done = getattr(obj, "task_done", None)
@@ -106,7 +116,7 @@ class ProjectTaskSerializer(serializers.ModelSerializer):
                   "milestone", "depends_on", "due_date", "estimate_hours", "position", "created_at", "completed_at"]
         read_only_fields = ["id", "number", "created_at", "completed_at"]
 
-    def get_assignee_name(self, obj):
+    def get_assignee_name(self, obj) -> str | None:
         return _name(obj.assignee)
 
     def validate_priority(self, value):

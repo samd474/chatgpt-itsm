@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from accounts.roles import ADMINISTRATOR, AUDITOR, MANAGER, REQUESTER, STAFF_ROLES, TECHNICIAN
 from core.numbering import assign_number
 from core.permissions import role_permission
+from core.schema import extend_schema
 from core.viewsets import AuditedModelViewSet
 from reports.audit import write_audit_event
 
@@ -29,6 +30,7 @@ FeedbackAccess = role_permission(
 
 class ArticleViewSet(AuditedModelViewSet):
     """Knowledge-base articles. Technicians write drafts; managers and administrators publish and retire."""
+    queryset = Article.objects.none()  # for the schema generator; get_queryset() scopes real requests
 
     serializer_class = ArticleSerializer
     permission_classes = [IsAuthenticated, ArticleAccess]
@@ -47,12 +49,14 @@ class ArticleViewSet(AuditedModelViewSet):
         ).order_by("-updated_at")  # aggregating drops Meta.ordering; paging needs a stable order
         return visible_articles(self.request.user, qs)
 
+    @extend_schema(responses=ArticleSuggestionSerializer(many=True))
     @action(detail=False, methods=["get"])
     def suggest(self, request):
         """Published articles matching free text (e.g. a ticket subject being typed), best first."""
         q = request.query_params.get("q", "")[:300]
         return Response(ArticleSuggestionSerializer(suggest(request.user, q), many=True).data)
 
+    @extend_schema(request=ArticleFeedbackSerializer, responses=ArticleSerializer)
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, FeedbackAccess])
     def feedback(self, request, pk=None):
         article = self.get_object()
