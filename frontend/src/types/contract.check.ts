@@ -7,7 +7,7 @@
  * bundled; the file only contains types.
  */
 import type { components } from "../api/schema";
-import type { ServiceDeskReport } from "../api/operations";
+import type { ServiceDeskReport, SlaAttention, SlaBreakdown, SlaNow, SlaPeriod, SlaReport, SlaTrendDay } from "../api/operations";
 import type * as UI from "./index";
 
 type Api = components["schemas"];
@@ -52,4 +52,10 @@ export type Contract = [
   Satisfies<Api["TicketRule"], Json<UI.TicketRule, "conditions" | "actions">>,
   Satisfies<Api["RulePreview"], UI.RulePreview>,
   Satisfies<Api["ServiceDeskReport"], ServiceDeskReport>,
+  Satisfies<Api["SLAReport"], SlaReport>,
+  Satisfies<Api["SLANow"], SlaNow>,
+  Satisfies<Api["SLAAttention"], SlaAttention>,
+  Satisfies<Api["SLAPeriod"], SlaPeriod>,
+  Satisfies<Api["SLATrendDay"], SlaTrendDay>,
+  Satisfies<Api["SLABreakdown"], SlaBreakdown>,
 ];

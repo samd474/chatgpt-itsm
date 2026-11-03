@@ -1,5 +1,5 @@
 import type { Page, Route } from "@playwright/test";
-import type { Article, Paginated, Ticket, TicketRule, User } from "../src/types";
+import type { Article, Paginated, SlaReport, Ticket, TicketRule, User } from "../src/types";
 
 // The browser only ever talks to /api; these tests answer it in-process, so they need no backend.
 
@@ -80,6 +80,38 @@ export const RULE: TicketRule = {
 const page = <T>(results: T[]): Paginated<T> => ({ count: results.length, next: null, previous: null, results });
 
 // [method, path pattern, response body]. First match wins; anything unmatched fails the test.
+// A fixed 30-day picture: one breached ticket, one at risk, and a trend with a few late days.
+const DAY = 86_400_000;
+const TODAY = Date.UTC(2026, 10, 3);
+export const SLA_REPORT: SlaReport = {
+  generated_at: new Date().toISOString(),
+  days: 30,
+  now: { breached: 1, at_risk: 1, paused: 2, on_track: 7, no_sla: 0 },
+  attention: [
+    { public_id: TICKET.public_id, request_number: "INC-000001", subject: "VPN drops every few minutes", priority: 2,
+      status: "in_progress", assignment_group: "Network", technician: "Tom Technician", state: "breached",
+      target: "resolution", due_at: new Date(Date.now() - 3 * 3_600_000).toISOString(), paused: false },
+    { public_id: "0b8e7d6c-5b4a-4392-8170-6f5e4d3c2b1a", request_number: "INC-000002", subject: "Printer offline on floor 3",
+      priority: 3, status: "new", assignment_group: "Desktop", technician: null, state: "at_risk",
+      target: "resolution", due_at: new Date(Date.now() + 45 * 60_000).toISOString(), paused: false },
+  ],
+  period: { resolved: 84, resolution_met_percent: 91.7, responded: 96, response_met_percent: 95.8 },
+  trend: Array.from({ length: 30 }, (_, i) => ({
+    date: new Date(TODAY - (29 - i) * DAY).toISOString().slice(0, 10),
+    met: [2, 3, 1, 4, 2, 0, 0][i % 7] + (i % 5 === 0 ? 1 : 0),
+    breached: i % 9 === 4 ? 1 : i === 27 ? 2 : 0,
+  })),
+  by_group: [
+    { key: 1, name: "Network", resolved: 40, resolution_met_percent: 87.5, responded: 44, response_met_percent: 93.2, open_breached: 1 },
+    { key: 2, name: "Desktop", resolved: 44, resolution_met_percent: 95.5, responded: 52, response_met_percent: 98.1, open_breached: 0 },
+  ],
+  by_priority: [
+    { key: 1, name: "P1", resolved: 6, resolution_met_percent: 100, responded: 6, response_met_percent: 100, open_breached: 0 },
+    { key: 2, name: "P2", resolved: 30, resolution_met_percent: 86.7, responded: 34, response_met_percent: 94.1, open_breached: 1 },
+    { key: 3, name: "P3", resolved: 48, resolution_met_percent: 93.8, responded: 56, response_met_percent: 96.4, open_breached: 0 },
+  ],
+};
+
 const ROUTES: [string, RegExp, unknown][] = [
   ["GET", /^\/api\/auth\/csrf\/$/, {}],
   ["POST", /^\/api\/auth\/logout\/$/, {}],
@@ -112,6 +144,7 @@ const ROUTES: [string, RegExp, unknown][] = [
     by_priority: { P2: 1 }, by_status: { in_progress: 1 },
     backlog_by_age: { under_1_day: 1, "1_to_3_days": 0, "3_to_7_days": 0, over_7_days: 0 },
   }],
+  ["GET", /^\/api\/reports\/sla\/$/, SLA_REPORT],
   // Lookups and resource lists: an empty array is valid for every remaining list endpoint.
   ["GET", /^\/api\/.+\/$/, []],
 ];

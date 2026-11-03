@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Download } from "lucide-react";
+import { Link } from "react-router-dom";
 import { getServiceDeskReport } from "../../api/operations";
 import { apiErrorMessage } from "../../api/client";
 import { exportDownloadUrl, getExports, requestExport } from "../../api/tickets";
@@ -43,6 +44,7 @@ export function ReportsPage() {
           <div className="metric"><span>SLA at risk</span><strong style={{ color: report.data.sla_at_risk ? "var(--amber)" : undefined }}>{report.data.sla_at_risk}</strong></div>
           <div className="metric"><span>SLA breached</span><strong style={{ color: report.data.sla_breached ? "var(--red)" : undefined }}>{report.data.sla_breached}</strong></div>
         </div>
+        <p style={{ margin: "-4px 0 16px" }}><Link to="/reports/sla">Open the SLA dashboard</Link> for the tickets behind these numbers and trends over time.</p>
         <div className="grid-2" style={{ marginBottom: 16 }}>
           <Breakdown title="Open by priority" data={report.data.by_priority} />
           <Breakdown title="Backlog age" data={report.data.backlog_by_age} labels={AGE_LABELS} />
