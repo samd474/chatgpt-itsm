@@ -5,11 +5,12 @@ from rest_framework.response import Response
 
 from accounts.roles import ADMINISTRATOR, AUDITOR
 from core.permissions import role_permission
+from core.schema import extend_schema
 from core.viewsets import AuditedModelViewSet
 
 from .models import TicketRule
 from .preview import preview
-from .serializers import TicketRuleSerializer
+from .serializers import RulePreviewRequestSerializer, RulePreviewSerializer, TicketRuleSerializer
 from .validation import validate_actions, validate_conditions
 
 
@@ -22,6 +23,7 @@ class TicketRuleViewSet(AuditedModelViewSet):
     pagination_class = None
     audit_prefix = "config.ticket_rule"
 
+    @extend_schema(request=RulePreviewRequestSerializer, responses=RulePreviewSerializer)
     @action(detail=False, methods=["post"])
     def preview(self, request):
         """Dry run of a (possibly unsaved) rule against the most recent tickets. Changes nothing."""

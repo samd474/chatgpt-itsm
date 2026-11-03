@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import importlib.util
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -197,6 +198,40 @@ REST_FRAMEWORK = {
     },
     "EXCEPTION_HANDLER": "config.exceptions.exception_handler",
 }
+
+# OpenAPI schema (dev/CI only: drf-spectacular is in requirements-dev, not the production image).
+# `manage.py spectacular` writes the schema the frontend's API types are generated from.
+if importlib.util.find_spec("drf_spectacular") is not None:
+    INSTALLED_APPS.append("drf_spectacular")
+    REST_FRAMEWORK["DEFAULT_SCHEMA_CLASS"] = "drf_spectacular.openapi.AutoSchema"
+    SPECTACULAR_SETTINGS = {
+        "TITLE": "ITSM API",
+        "VERSION": "1.0.0",
+        "SERVE_INCLUDE_SCHEMA": False,
+        # Separate request and response shapes, so read-only fields are required in responses.
+        "COMPONENT_SPLIT_REQUEST": True,
+        "POSTPROCESSING_HOOKS": [
+            "drf_spectacular.hooks.postprocess_schema_enums",  # the default
+            "config.openapi_hooks.require_response_fields",
+        ],
+        # Stable enum names for the generated frontend types (several models share choice sets
+        # or field names, which would otherwise get hashed names such as "StateB39Enum").
+        "ENUM_NAME_OVERRIDES": {
+            "LevelEnum": "helprequests.models.HelpRequests.Level",
+            "RequestTypeEnum": "helprequests.models.HelpRequests.RequestType",
+            "ApprovalStateEnum": "helprequests.models.Approval.State",  # also ChangeApproval.State (same values)
+            "ImportJobStateEnum": "reports.models.ImportJob.State",
+            "ExportJobStateEnum": "reports.models.ExportJob.State",
+            "TicketStatusEnum": "helprequests.models.HelpRequests.RequestStatus",
+            "FulfillmentTaskStatusEnum": "helprequests.models.FulfillmentTask.Status",
+            "ArticleStatusEnum": "solutions.models.Article.Status",
+            "AssetStatusEnum": "assets.models.Asset.Status",
+            "ContractStatusEnum": "contracts.models.Contract.Status",
+            "ProjectStatusEnum": "projects.models.Project.Status",
+            "ProjectTaskStatusEnum": "projects.models.ProjectTask.Status",
+            "ChangeStatusEnum": "changes.models.ChangeRequest.Status",
+        },
+    }
 
 CORS_ALLOWED_ORIGINS = ["http://localhost:5173"] if DEBUG else []
 CORS_ALLOW_CREDENTIALS = True

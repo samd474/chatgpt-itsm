@@ -25,7 +25,7 @@ class ChangeApprovalSerializer(serializers.ModelSerializer):
         fields = ["id", "change", "change_number", "change_title", "approver", "approver_name", "state", "comment", "decided_at", "created_at"]
         read_only_fields = fields
 
-    def get_approver_name(self, obj):
+    def get_approver_name(self, obj) -> str | None:
         return _name(obj.approver)
 
 
@@ -49,13 +49,13 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "number", "status", "requested_by", "actual_start", "actual_end", "outcome",
                             "created_at", "updated_at"]
 
-    def get_requested_by_name(self, obj):
+    def get_requested_by_name(self, obj) -> str | None:
         return _name(obj.requested_by)
 
-    def get_implementer_name(self, obj):
+    def get_implementer_name(self, obj) -> str | None:
         return _name(obj.implementer)
 
-    def get_conflict_count(self, obj):
+    def get_conflict_count(self, obj) -> int:
         annotated = getattr(obj, "conflict_total", None)
         if annotated is not None:
             return annotated

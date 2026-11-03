@@ -35,10 +35,10 @@ class ContractSerializer(serializers.ModelSerializer):
             for field in FINANCIAL_FIELDS:
                 self.fields.pop(field, None)
 
-    def get_owner_name(self, obj):
+    def get_owner_name(self, obj) -> str | None:
         return (obj.owner.get_full_name() or obj.owner.get_username()) if obj.owner else None
 
-    def get_days_remaining(self, obj):
+    def get_days_remaining(self, obj) -> int:
         from django.utils import timezone
 
         return (obj.end_date - timezone.localdate()).days

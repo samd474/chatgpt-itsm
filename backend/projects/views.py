@@ -27,6 +27,7 @@ class NoAuditorWrites(BasePermission):
 
 
 class ProjectViewSet(AuditedModelViewSet):
+    queryset = Project.objects.none()  # for the schema generator; get_queryset() scopes real requests
     serializer_class = ProjectSerializer
     permission_classes = [IsAuthenticated, NoAuditorWrites]
     audit_prefix = "project"
@@ -87,6 +88,7 @@ class ProjectScopedViewSet(AuditedModelViewSet):
 
 
 class MilestoneViewSet(ProjectScopedViewSet):
+    queryset = Milestone.objects.none()  # for the schema generator; get_queryset() scopes real requests
     serializer_class = MilestoneSerializer
     model = Milestone
     audit_prefix = "project.milestone"
@@ -96,6 +98,7 @@ class MilestoneViewSet(ProjectScopedViewSet):
 
 
 class ProjectTaskViewSet(ProjectScopedViewSet):
+    queryset = ProjectTask.objects.none()  # for the schema generator; get_queryset() scopes real requests
     serializer_class = ProjectTaskSerializer
     model = ProjectTask
     audit_prefix = "project.task"

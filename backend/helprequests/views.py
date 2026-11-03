@@ -17,10 +17,12 @@ from accounts.models import User as AccountUser
 from accounts.roles import ADMINISTRATOR, STAFF_ROLES, has_role, is_admin, is_staff_user
 from core.customfields import clean_custom_fields
 from core.permissions import role_permission
+from core.schema import extend_schema
 from core.viewsets import AuditedModelViewSet
 from reports.audit import write_audit_event
 from reports.csv_utils import csv_response
 from reports.models import ExportJob
+from solutions.serializers import ArticleSerializer, TicketArticleLinkSerializer
 
 from . import queues, services
 from .access import can_read_private_notes, visible_HelpRequests, works_ticket
@@ -76,6 +78,7 @@ class HelpRequestsViewSet(
     viewsets.GenericViewSet,
 ):
     """Tickets. There is deliberately no DELETE; cancel through a transition instead."""
+    queryset = HelpRequests.objects.none()  # for the schema generator; get_queryset() scopes real requests
 
     permission_classes = [IsAuthenticated, NotReadOnlyAuditor]
     lookup_field = "public_id"
@@ -146,6 +149,7 @@ class HelpRequestsViewSet(
         help_request = services.update_help_request(help_request, actor=request.user, changes=changes, request=request)
         return Response(self._read(help_request))
 
+    @extend_schema(request=TransitionSerializer, responses=HelpRequestsReadSerializer)
     @action(detail=True, methods=["post"])
     def transition(self, request, public_id=None):
         help_request = self.get_object()
@@ -163,6 +167,8 @@ class HelpRequestsViewSet(
         )
         return Response(self._read(help_request))
 
+    @extend_schema(methods=["GET"], responses=CommentSerializer(many=True))
+    @extend_schema(methods=["POST"], request=CommentSerializer, responses={201: CommentSerializer})
     @action(detail=True, methods=["get", "post"])
     def comments(self, request, public_id=None):
         help_request = self.get_object()
@@ -184,6 +190,9 @@ class HelpRequestsViewSet(
             comments = comments.filter(visibility=HelpRequestsComment.Visibility.PUBLIC)
         return Response(CommentSerializer(comments, many=True).data)
 
+    @extend_schema(methods=["GET"], responses=AttachmentSerializer(many=True))
+    @extend_schema(methods=["POST"], request={"multipart/form-data": {"type": "object", "properties": {"file": {"type": "string", "format": "binary"}}}},
+                   responses={201: AttachmentSerializer})
     @action(detail=True, methods=["get", "post"], throttle_classes=[UploadThrottle])
     def attachments(self, request, public_id=None):
         help_request = self.get_object()
@@ -215,11 +224,14 @@ class HelpRequestsViewSet(
             content_type="application/octet-stream",
         )
 
+    @extend_schema(responses=ApprovalSerializer(many=True))
     @action(detail=True, methods=["get"], url_path="approvals")
     def ticket_approvals(self, request, public_id=None):
         help_request = self.get_object()
         return Response(ApprovalSerializer(help_request.approvals.select_related("approver"), many=True).data)
 
+    @extend_schema(methods=["GET"], responses=FulfillmentTaskSerializer(many=True))
+    @extend_schema(methods=["POST"], request=FulfillmentTaskSerializer, responses={201: FulfillmentTaskSerializer})
     @action(detail=True, methods=["get", "post"])
     def tasks(self, request, public_id=None):
         help_request = self.get_object()
@@ -236,12 +248,13 @@ class HelpRequestsViewSet(
         tasks = help_request.tasks.select_related("assignee", "assignment_group")
         return Response(FulfillmentTaskSerializer(tasks, many=True).data)
 
+    @extend_schema(methods=["GET"], responses=ArticleSerializer(many=True))
+    @extend_schema(methods=["POST"], request=TicketArticleLinkSerializer, responses=ArticleSerializer(many=True))
     @action(detail=True, methods=["get", "post"])
     def articles(self, request, public_id=None):
         """Knowledge-base articles linked to this ticket, limited to the ones the viewer may read."""
         from solutions.access import visible_articles
         from solutions.models import Article
-        from solutions.serializers import ArticleSerializer, TicketArticleLinkSerializer
 
         help_request = self.get_object()
         if request.method == "POST":
@@ -288,6 +301,7 @@ class HelpRequestsViewSet(
 
 class FulfillmentTaskViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
     """Update a task's status or assignee. Scoped to tickets the user can see."""
+    queryset = FulfillmentTask.objects.none()  # for the schema generator; get_queryset() scopes real requests
 
     serializer_class = FulfillmentTaskSerializer
     permission_classes = [IsAuthenticated, NotReadOnlyAuditor]
@@ -308,6 +322,7 @@ class FulfillmentTaskViewSet(mixins.RetrieveModelMixin, mixins.UpdateModelMixin,
 
 class ApprovalViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     """The approvals assigned to the current user."""
+    queryset = Approval.objects.none()  # for the schema generator; get_queryset() scopes real requests
 
     serializer_class = ApprovalSerializer
     filterset_fields = ["state"]
@@ -316,6 +331,7 @@ class ApprovalViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
     def get_queryset(self):
         return Approval.objects.filter(approver=self.request.user).select_related("approver", "help_request")
 
+    @extend_schema(request=ApprovalDecisionSerializer, responses=ApprovalSerializer)
     @action(detail=True, methods=["post"])
     def decide(self, request, pk=None):
         approval = self.get_object()
@@ -384,6 +400,7 @@ class TicketTemplateViewSet(AuditedModelViewSet):
 
 
 class QueueViewSet(AuditedModelViewSet):
+    queryset = Queue.objects.none()  # for the schema generator; get_queryset() scopes real requests
     serializer_class = QueueSerializer
     permission_classes = [IsAuthenticated, role_permission(read_roles=STAFF_ROLES + ("Auditor",), write_roles=(ADMINISTRATOR,))]
     pagination_class = None

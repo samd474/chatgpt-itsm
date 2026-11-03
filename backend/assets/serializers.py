@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from core.customfields import clean_custom_fields
+from core.schema import extend_schema_field
 from helprequests.access import visible_HelpRequests
 from helprequests.models import HelpRequests
 
@@ -26,6 +27,15 @@ class LocationSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "address", "active"]
 
 
+class LinkedTicketSerializer(serializers.Serializer):
+    """Shape of an asset's `linked_tickets` entries (for the OpenAPI schema)."""
+
+    public_id = serializers.CharField()
+    request_number = serializers.CharField(allow_null=True)
+    subject = serializers.CharField()
+    status = serializers.ChoiceField(choices=HelpRequests.RequestStatus.choices)
+
+
 class AssetSerializer(serializers.ModelSerializer):
     asset_type_name = serializers.CharField(source="asset_type.name", read_only=True)
     location_name = serializers.CharField(source="location.name", default=None, read_only=True)
@@ -44,12 +54,13 @@ class AssetSerializer(serializers.ModelSerializer):
                   "linked_tickets", "created_at", "updated_at"]
         read_only_fields = ["id", "created_at", "updated_at"]
 
-    def get_owner_name(self, obj):
+    def get_owner_name(self, obj) -> str | None:
         return _name(obj.owner)
 
-    def get_assigned_to_name(self, obj):
+    def get_assigned_to_name(self, obj) -> str | None:
         return _name(obj.assigned_to)
 
+    @extend_schema_field(LinkedTicketSerializer(many=True))
     def get_linked_tickets(self, obj):
         # Only tickets the viewer can already see: an asset must not reveal another team's ticket subjects.
         if "help_requests" in getattr(obj, "_prefetched_objects_cache", {}):
