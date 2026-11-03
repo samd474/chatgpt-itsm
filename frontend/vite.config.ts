@@ -1,6 +1,10 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
+/** Matches modules inside the named node_modules packages. */
+const vendor = (...packages: string[]) =>
+  new RegExp(`node_modules[\\\\/](${packages.map((p) => p.replace("/", "[\\\\/]")).join("|")})[\\\\/]`);
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, ".", "");
   // Same-origin /api in development: the browser calls http://localhost:5173/api/...
@@ -10,13 +14,15 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     build: {
-      rollupOptions: {
+      rolldownOptions: {
         output: {
           // Long-lived vendor chunks so app updates don't re-download libraries.
-          manualChunks: {
-            react: ["react", "react-dom", "react-router-dom"],
-            data: ["@tanstack/react-query", "axios", "zod", "react-hook-form", "@hookform/resolvers"],
-            icons: ["lucide-react"],
+          codeSplitting: {
+            groups: [
+              { name: "react", test: vendor("react", "react-dom", "react-router", "react-router-dom", "scheduler") },
+              { name: "data", test: vendor("@tanstack/react-query", "@tanstack/query-core", "axios", "zod", "react-hook-form", "@hookform/resolvers") },
+              { name: "icons", test: vendor("lucide-react") },
+            ],
           },
         },
       },
