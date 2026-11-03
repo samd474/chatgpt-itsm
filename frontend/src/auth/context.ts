@@ -4,7 +4,9 @@ import type { User } from "../types";
 export type AuthContextValue = {
   user: User | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<User>;
+  /** Resolves to the user, or "two_factor" when a code is needed next (see verifyTwoFactor). */
+  login: (username: string, password: string) => Promise<User | "two_factor">;
+  verifyTwoFactor: (token: string) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };

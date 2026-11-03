@@ -33,6 +33,7 @@ const ProjectsPage = lazy(() => import("./pages/projects/ProjectsPage").then((m)
 const ProjectDetailPage = lazy(() => import("./pages/projects/ProjectDetailPage").then((m) => ({ default: m.ProjectDetailPage })));
 const ChangesPage = lazy(() => import("./pages/changes/ChangesPage").then((m) => ({ default: m.ChangesPage })));
 const ChangeDetailPage = lazy(() => import("./pages/changes/ChangeDetailPage").then((m) => ({ default: m.ChangeDetailPage })));
+const SecurityPage = lazy(() => import("./pages/account/SecurityPage").then((m) => ({ default: m.SecurityPage })));
 const ChangeCalendarPage = lazy(() => import("./pages/changes/ChangeCalendarPage").then((m) => ({ default: m.ChangeCalendarPage })));
 
 function HomeRedirect() {
@@ -58,6 +59,7 @@ export default function App() {
           <Route path="/portal/catalog/:slug" element={<CatalogItemPage />} />
           <Route path="/portal/equipment" element={<EquipmentPage />} />
           <Route path="/approvals" element={<ApprovalsPage />} />
+          <Route path="/account/security" element={<SecurityPage />} />
           <Route path="/knowledge" element={<KnowledgePage />} />
           <Route path="/knowledge/:id" element={<ArticlePage />} />
 

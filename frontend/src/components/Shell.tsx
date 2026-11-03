@@ -10,6 +10,7 @@ import {
   GitPullRequestArrow,
   Inbox,
   LayoutGrid,
+  KeyRound,
   LogOut,
   Menu,
   Monitor,
@@ -118,6 +119,7 @@ export function Shell() {
           <div className="user-chip">
             <Avatar name={user.name || user.username} />
             <div className="user-meta"><strong>{user.name || user.username}</strong><span>{user.groups.join(", ") || "Member"}</span></div>
+            <NavLink to="/account/security" className="btn btn-ghost btn-icon" title="Sign-in security" aria-label="Sign-in security"><KeyRound /></NavLink>
             <button className="btn btn-ghost btn-icon" title="Sign out" aria-label="Sign out"
               onClick={async () => { await logout(); navigate("/login", { replace: true }); }}><LogOut /></button>
           </div>

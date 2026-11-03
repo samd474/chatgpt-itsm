@@ -7,6 +7,9 @@ export type User = {
   name: string;
   groups: string[];
   is_superuser: boolean;
+  two_factor_enabled: boolean;
+  two_factor_required: boolean;
+  two_factor_setup_needed: boolean; // required for their role but not set up yet
 };
 
 export type TicketStatus =
