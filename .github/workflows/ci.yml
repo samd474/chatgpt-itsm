@@ -56,6 +56,11 @@ jobs:
           DJANGO_HSTS_SECONDS: "31536000"
         run: python manage.py check --deploy --fail-level WARNING
       - run: python manage.py makemigrations --check --dry-run
+      - name: OpenAPI schema is up to date
+        # The frontend's API types are generated from this file; see frontend/src/types/contract.check.ts.
+        run: |
+          python manage.py spectacular --validate --fail-on-warn --file openapi.yaml
+          git diff --exit-code openapi.yaml
       - name: Type check
         # pyrightconfig.json reads packages from <repo>/.venv; point that at the runner's Python
         # (without it basedpyright exits 3 even when there are no errors).
@@ -79,8 +84,12 @@ jobs:
       - run: npm ci
       - name: Dependency vulnerability audit
         run: npm audit --omit=dev --audit-level=high
+      - name: API types match the schema
+        run: |
+          npm run api:types
+          git diff --exit-code src/api/schema.d.ts
       - run: npm run lint
-      - run: npm run build
+      - run: npm run build  # type-checks src/types/contract.check.ts against the generated API types
       - name: Smoke tests (production build, mocked API)
         run: |
           npx playwright install --with-deps chromium
