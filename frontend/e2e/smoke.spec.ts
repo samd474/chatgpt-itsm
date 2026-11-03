@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { ARTICLE, mockApi, ROLE_USERS, TICKET } from "./mockApi";
+import { ARTICLE, mockApi, RECOVERY_CODES, ROLE_USERS, TICKET, VALID_CODE } from "./mockApi";
 
 // Fail any test whose page throws or logs an error.
 let problems: string[] = [];
@@ -32,6 +32,57 @@ test("signing in lands on the role's home page", async ({ page }) => {
   await page.getByLabel("Password").fill("correct horse");
   await page.getByRole("button", { name: "Sign in" }).click();
   await expectPage(page, "/tech/queue");
+});
+
+test("accounts with 2FA enter a code after the password", async ({ page }) => {
+  await mockApi(page, null, ROLE_USERS.admin);
+  await page.goto("/login");
+  await page.getByLabel("Username").fill("root");
+  await page.getByLabel("Password").fill("correct horse");
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  await expect(page.getByRole("heading", { name: "Enter your sign-in code" })).toBeVisible();
+  await page.getByLabel("Code").fill("000000");
+  await page.getByRole("button", { name: "Verify" }).click();
+  await expect(page.getByText("That code isn't valid.")).toBeVisible();
+
+  await page.getByLabel("Code").fill(VALID_CODE);
+  await page.getByRole("button", { name: "Verify" }).click();
+  await expectPage(page, "/tech/queue");  problems = problems.filter((p) => !p.includes("status of 400"));  // the wrong code, on purpose
+});
+
+test("a role that requires 2FA is sent to set it up, and sees recovery codes once", async ({ page }) => {
+  await mockApi(page, { ...ROLE_USERS.admin, two_factor_enabled: false, two_factor_setup_needed: true });
+  await page.goto("/tech/queue");
+  await expectPage(page, "/account/security");
+  await expect(page.getByText("Your role requires two-factor authentication. Set it up")).toBeVisible();
+
+  await page.getByRole("button", { name: "Set up authenticator app" }).click();
+  await expect(page.getByAltText("QR code for your authenticator app")).toBeVisible();
+  await expect(page.getByTestId("totp-secret")).toHaveText("JBSWY3DPEHPK3PXP");
+  await page.getByLabel("Code from the app").fill(VALID_CODE);
+  await page.getByRole("button", { name: "Turn on" }).click();
+
+  const codes = page.getByRole("list", { name: "Recovery codes" });
+  await expect(codes.getByRole("listitem")).toHaveText(RECOVERY_CODES);
+  await expect(page.getByText("can't be turned off")).toBeVisible();
+  await page.goto("/tech/queue");  // no longer held on the security page
+  await expectPage(page, "/tech/queue");
+});
+
+test("other roles can turn 2FA on and off from the security page", async ({ page }) => {
+  await mockApi(page, ROLE_USERS.technician);
+  await page.goto("/tech/queue");
+  await page.getByRole("link", { name: "Sign-in security" }).click();
+  await expectPage(page, "/account/security");
+  await page.getByRole("button", { name: "Set up authenticator app" }).click();
+  await page.getByLabel("Code from the app").fill(VALID_CODE);
+  await page.getByRole("button", { name: "Turn on" }).click();
+  await expect(page.getByText("On", { exact: true })).toBeVisible();
+
+  await page.getByLabel("Current code or recovery code").fill(VALID_CODE);
+  await page.getByRole("button", { name: "Turn off two-factor" }).click();
+  await expect(page.getByRole("button", { name: "Set up authenticator app" })).toBeVisible();
 });
 
 for (const [role, home] of [["requester", "/portal"], ["technician", "/tech/queue"], ["auditor", "/audit"], ["admin", "/tech/queue"]] as const) {

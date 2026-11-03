@@ -12,6 +12,17 @@ export const api = axios.create({
   },
 });
 
+/** Fired when the API refuses a session that hasn't been verified with a two-factor code. */
+export const SESSION_UNVERIFIED_EVENT = "itsm:session-unverified";
+
+api.interceptors.response.use(undefined, (error: unknown) => {
+  if (axios.isAxiosError(error) && error.response?.status === 403
+      && (error.response.data as { code?: string } | undefined)?.code === "two_factor_verification_required") {
+    window.dispatchEvent(new Event(SESSION_UNVERIFIED_EVENT));
+  }
+  return Promise.reject(error);
+});
+
 export function apiErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<{ detail?: string; [key: string]: unknown }>;

@@ -528,6 +528,107 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/2fa/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["auth_2fa_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/2fa/confirm/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Finish enrolment with a code from the app; returns recovery codes (shown once). */
+        post: operations["auth_2fa_confirm_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/2fa/disable/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Turn 2FA off; needs a current code, and isn't allowed for roles that require it. */
+        post: operations["auth_2fa_disable_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/2fa/recovery-codes/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Replace the recovery codes; needs a current code. */
+        post: operations["auth_2fa_recovery_codes_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/2fa/setup/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Start enrolment: a new secret to scan. Nothing changes until it's confirmed with a code. */
+        post: operations["auth_2fa_setup_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/2fa/verify/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Second login step: a code (or recovery code) for the user who just passed the password step. */
+        post: operations["auth_2fa_verify_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/csrf/": {
         parameters: {
             query?: never;
@@ -2231,6 +2332,9 @@ export interface components {
             name: string;
             groups: string[];
             is_superuser: boolean;
+            two_factor_enabled: boolean;
+            two_factor_required: boolean;
+            two_factor_setup_needed: boolean;
         };
         CustomFieldDefinition: {
             readonly id: number;
@@ -2465,6 +2569,7 @@ export interface components {
         LoginResponse: {
             id: number;
             username: string;
+            two_factor_required: boolean;
         };
         Milestone: {
             readonly id: number;
@@ -3216,6 +3321,9 @@ export interface components {
             position?: number;
             active?: boolean;
         };
+        RecoveryCodes: {
+            recovery_codes: string[];
+        };
         /**
          * @description * `incident` - Incident
          *     * `request` - Request
@@ -3422,12 +3530,27 @@ export interface components {
             available_to_requesters?: boolean;
             active?: boolean;
         };
+        TokenRequestRequest: {
+            /** @description A code from the authenticator app, or an unused recovery code. */
+            token: string;
+        };
         TransitionRequest: {
             status: components["schemas"]["TicketStatusEnum"];
             /** @default  */
             reason: string;
             resolution_code: string;
             resolution_body: string;
+        };
+        TwoFactorSetup: {
+            otpauth_url: string;
+            secret: string;
+            /** @description An SVG data: URI of the QR code. */
+            qr_svg: string;
+        };
+        TwoFactorStatus: {
+            enabled: boolean;
+            required_by_role: boolean;
+            recovery_codes_left: number;
         };
         UserAdmin: {
             readonly id: number;
@@ -5059,6 +5182,143 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditEvent"];
+                };
+            };
+        };
+    };
+    auth_2fa_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TwoFactorStatus"];
+                };
+            };
+        };
+    };
+    auth_2fa_confirm_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TokenRequestRequest"];
+                "multipart/form-data": components["schemas"]["TokenRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryCodes"];
+                };
+            };
+        };
+    };
+    auth_2fa_disable_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TokenRequestRequest"];
+                "multipart/form-data": components["schemas"]["TokenRequestRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_2fa_recovery_codes_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TokenRequestRequest"];
+                "multipart/form-data": components["schemas"]["TokenRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryCodes"];
+                };
+            };
+        };
+    };
+    auth_2fa_setup_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TwoFactorSetup"];
+                };
+            };
+        };
+    };
+    auth_2fa_verify_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TokenRequestRequest"];
+                "multipart/form-data": components["schemas"]["TokenRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
                 };
             };
         };

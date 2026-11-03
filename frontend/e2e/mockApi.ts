@@ -3,12 +3,19 @@ import type { Article, Paginated, Ticket, TicketRule, User } from "../src/types"
 
 // The browser only ever talks to /api; these tests answer it in-process, so they need no backend.
 
+const NO_2FA = { two_factor_enabled: false, two_factor_required: false, two_factor_setup_needed: false };
+
 export const ROLE_USERS = {
-  requester: { id: 2, username: "rita", name: "Rita Requester", groups: ["Requester"], is_superuser: false },
-  technician: { id: 3, username: "tom", name: "Tom Technician", groups: ["Technician"], is_superuser: false },
-  auditor: { id: 4, username: "ada", name: "Ada Auditor", groups: ["Auditor"], is_superuser: false },
-  admin: { id: 1, username: "root", name: "Root Admin", groups: ["Administrator"], is_superuser: true },
+  requester: { id: 2, username: "rita", name: "Rita Requester", groups: ["Requester"], is_superuser: false, ...NO_2FA },
+  technician: { id: 3, username: "tom", name: "Tom Technician", groups: ["Technician"], is_superuser: false, ...NO_2FA },
+  auditor: { id: 4, username: "ada", name: "Ada Auditor", groups: ["Auditor"], is_superuser: false, ...NO_2FA },
+  // Administrators must use 2FA; this one already has it set up.
+  admin: { id: 1, username: "root", name: "Root Admin", groups: ["Administrator"], is_superuser: true,
+    two_factor_enabled: true, two_factor_required: true, two_factor_setup_needed: false },
 } satisfies Record<string, User>;
+
+export const VALID_CODE = "123456";
+export const RECOVERY_CODES = ["aaaa1111", "bbbb2222", "cccc3333"];
 
 export const TICKET: Ticket = {
   public_id: "6f1c2b9e-4d3a-4b5c-9e8f-0a1b2c3d4e5f",
@@ -114,6 +121,13 @@ export type ApiLog = { unmatched: string[] };
 /** Serve the mock API. `user` is who /auth/me/ returns; `null` means signed out until a login succeeds. */
 export async function mockApi(page: Page, user: User | null, loginAs: User = ROLE_USERS.requester): Promise<ApiLog> {
   let current = user;
+  let awaitingCode = false;
+  let body: Record<string, unknown> | null = null;
+  const token = () => String(body?.token ?? "");
+  const wrongCode = (route: Route) => route.fulfill({ status: 400, json: { detail: "That code isn't valid." } });
+  const setTwoFactor = (enabled: boolean) => {
+    if (current) current = { ...current, two_factor_enabled: enabled, two_factor_setup_needed: current.two_factor_required && !enabled };
+  };
   const log: ApiLog = { unmatched: [] };
   await page.route((url) => url.pathname.startsWith("/api/"), async (route: Route) => {
     const request = route.request();
@@ -121,9 +135,33 @@ export async function mockApi(page: Page, user: User | null, loginAs: User = ROL
     if (pathname === "/api/auth/me/") {
       return current ? route.fulfill({ json: current }) : route.fulfill({ status: 403, json: { detail: "Not signed in." } });
     }
+    body = request.method() === "POST" ? (request.postDataJSON() as Record<string, unknown> | null) : null;
     if (request.method() === "POST" && pathname === "/api/auth/login/") {
+      if (loginAs.two_factor_enabled) {
+        awaitingCode = true;
+        return route.fulfill({ json: { two_factor_required: true } });
+      }
       current = loginAs;
-      return route.fulfill({ json: {} });
+      return route.fulfill({ json: { id: loginAs.id, username: loginAs.username, two_factor_required: false } });
+    }
+    if (request.method() === "POST" && pathname === "/api/auth/2fa/verify/") {
+      if (!awaitingCode || token() !== VALID_CODE) return wrongCode(route);
+      current = loginAs;
+      return route.fulfill({ json: { id: loginAs.id, username: loginAs.username, two_factor_required: false } });
+    }
+    if (current && pathname.startsWith("/api/auth/2fa/")) {
+      if (request.method() === "GET" && pathname === "/api/auth/2fa/") {
+        return route.fulfill({ json: { enabled: current.two_factor_enabled, required_by_role: current.two_factor_required,
+          recovery_codes_left: current.two_factor_enabled ? RECOVERY_CODES.length : 0 } });
+      }
+      if (pathname === "/api/auth/2fa/setup/") {
+        return route.fulfill({ json: { otpauth_url: "otpauth://totp/ITSM:mock?secret=JBSWY3DPEHPK3PXP", secret: "JBSWY3DPEHPK3PXP",
+          qr_svg: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=" } });
+      }
+      if (token() !== VALID_CODE) return wrongCode(route);
+      if (pathname === "/api/auth/2fa/confirm/") { setTwoFactor(true); return route.fulfill({ json: { recovery_codes: RECOVERY_CODES } }); }
+      if (pathname === "/api/auth/2fa/recovery-codes/") return route.fulfill({ json: { recovery_codes: RECOVERY_CODES } });
+      if (pathname === "/api/auth/2fa/disable/") { setTwoFactor(false); return route.fulfill({ status: 204 }); }
     }
     const match = ROUTES.find(([method, pattern]) => method === request.method() && pattern.test(pathname));
     if (match) return route.fulfill({ json: match[2] });
