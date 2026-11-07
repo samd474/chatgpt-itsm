@@ -1529,6 +1529,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reports/sla/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["reports_sla_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/rules/ticket-rules/": {
         parameters: {
             query?: never;
@@ -3391,6 +3407,54 @@ export interface components {
          * @enum {string}
          */
         RunsOnEnum: "created" | "updated" | "both";
+        SLAAttention: {
+            /** Format: uuid */
+            public_id: string;
+            request_number: string;
+            subject: string;
+            priority: number;
+            status: string;
+            assignment_group: string | null;
+            technician: string | null;
+            state: components["schemas"]["SLAAttentionStateEnum"];
+            target: components["schemas"]["TargetEnum"];
+            /** Format: date-time */
+            due_at: string;
+            paused: boolean;
+        };
+        /**
+         * @description * `breached` - breached
+         *     * `at_risk` - at_risk
+         * @enum {string}
+         */
+        SLAAttentionStateEnum: "breached" | "at_risk";
+        SLABreakdown: {
+            key: number | null;
+            name: string;
+            resolved: number;
+            /** Format: double */
+            resolution_met_percent: number | null;
+            responded: number;
+            /** Format: double */
+            response_met_percent: number | null;
+            open_breached: number;
+        };
+        SLANow: {
+            breached: number;
+            at_risk: number;
+            paused: number;
+            on_track: number;
+            /** @description Open tickets with no SLA policy. */
+            no_sla: number;
+        };
+        SLAPeriod: {
+            resolved: number;
+            /** Format: double */
+            resolution_met_percent: number | null;
+            responded: number;
+            /** Format: double */
+            response_met_percent: number | null;
+        };
         SLAPolicy: {
             readonly id: number;
             name: string;
@@ -3411,6 +3475,23 @@ export interface components {
             resolution_minutes: number;
             warn_percent?: number;
             active?: boolean;
+        };
+        SLAReport: {
+            /** Format: date-time */
+            generated_at: string;
+            days: number;
+            now: components["schemas"]["SLANow"];
+            attention: components["schemas"]["SLAAttention"][];
+            period: components["schemas"]["SLAPeriod"];
+            trend: components["schemas"]["SLATrendDay"][];
+            by_group: components["schemas"]["SLABreakdown"][];
+            by_priority: components["schemas"]["SLABreakdown"][];
+        };
+        SLATrendDay: {
+            /** Format: date */
+            date: string;
+            met: number;
+            breached: number;
         };
         Service: {
             readonly id: number;
@@ -3458,6 +3539,12 @@ export interface components {
             name: string;
             active?: boolean;
         };
+        /**
+         * @description * `response` - response
+         *     * `resolution` - resolution
+         * @enum {string}
+         */
+        TargetEnum: "response" | "resolution";
         TicketArticleLinkRequest: {
             article: number;
             /** @default false */
@@ -7824,6 +7911,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServiceDeskReport"];
+                };
+            };
+        };
+    };
+    reports_sla_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Look-back period for the trend (default 30). */
+                days?: 30 | 7 | 90;
+                /** @description Only tickets assigned to this support group. */
+                group?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SLAReport"];
                 };
             };
         };

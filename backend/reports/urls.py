@@ -10,5 +10,6 @@ router.register("exports", views.ExportJobViewSet, basename="exports")
 
 urlpatterns = [
     path("reports/service-desk/", views.service_desk_report),
+    path("reports/sla/", views.sla_dashboard),
     *router.urls,
 ]

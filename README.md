@@ -73,6 +73,7 @@ session and CSRF cookies behave the same way they will behind NGINX in productio
 | `/api/admin/users/`, `/api/admin/roles/`, `/api/admin/catalog-items/`, `/api/admin/sla-policies/`, `/api/admin/business-calendars/`, `/api/admin/notification-templates/` | Administrator console |
 | `GET /api/exports/`, `GET /api/exports/{id}/download/` | Background export files (owner only) |
 | `GET /api/reports/service-desk/` | Manager dashboard |
+| `GET /api/reports/sla/?days=7\|30\|90&group=` | SLA dashboard: breached / at-risk tickets now, compliance trend and breakdowns |
 | `GET /api/audit/` | Audit search (Auditor/Administrator) |
 | `POST /api/imports/`, `POST /api/imports/{id}/confirm/` | Staged CSV import (Administrator) |
 | `GET /health/live`, `GET /health/ready` | Liveness / database + Redis readiness |

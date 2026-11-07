@@ -46,3 +46,61 @@ class ServiceDeskReportSerializer(serializers.Serializer):
     by_priority = serializers.DictField(child=serializers.IntegerField())
     by_status = serializers.DictField(child=serializers.IntegerField())
     backlog_by_age = serializers.DictField(child=serializers.IntegerField())
+
+
+# --- GET /api/reports/sla/ (shapes for the OpenAPI schema) ------------------------------------------
+
+class SLANowSerializer(serializers.Serializer):
+    breached = serializers.IntegerField()
+    at_risk = serializers.IntegerField()
+    paused = serializers.IntegerField()
+    on_track = serializers.IntegerField()
+    no_sla = serializers.IntegerField(help_text="Open tickets with no SLA policy.")
+
+
+class SLAAttentionSerializer(serializers.Serializer):
+    public_id = serializers.UUIDField()
+    request_number = serializers.CharField()
+    subject = serializers.CharField()
+    priority = serializers.IntegerField()
+    status = serializers.CharField()
+    assignment_group = serializers.CharField(allow_null=True)
+    technician = serializers.CharField(allow_null=True)
+    state = serializers.ChoiceField(choices=["breached", "at_risk"])
+    target = serializers.ChoiceField(choices=["response", "resolution"])
+    due_at = serializers.DateTimeField()
+    paused = serializers.BooleanField()
+
+
+class SLAPeriodSerializer(serializers.Serializer):
+    resolved = serializers.IntegerField()
+    resolution_met_percent = serializers.FloatField(allow_null=True)
+    responded = serializers.IntegerField()
+    response_met_percent = serializers.FloatField(allow_null=True)
+
+
+class SLATrendDaySerializer(serializers.Serializer):
+    date = serializers.DateField()
+    met = serializers.IntegerField()
+    breached = serializers.IntegerField()
+
+
+class SLABreakdownSerializer(serializers.Serializer):
+    key = serializers.IntegerField(allow_null=True)
+    name = serializers.CharField()  # not "label": that would shadow Field.label
+    resolved = serializers.IntegerField()
+    resolution_met_percent = serializers.FloatField(allow_null=True)
+    responded = serializers.IntegerField()
+    response_met_percent = serializers.FloatField(allow_null=True)
+    open_breached = serializers.IntegerField()
+
+
+class SLAReportSerializer(serializers.Serializer):
+    generated_at = serializers.DateTimeField()
+    days = serializers.IntegerField()
+    now = SLANowSerializer()
+    attention = SLAAttentionSerializer(many=True)
+    period = SLAPeriodSerializer()
+    trend = SLATrendDaySerializer(many=True)
+    by_group = SLABreakdownSerializer(many=True)
+    by_priority = SLABreakdownSerializer(many=True)

@@ -424,3 +424,22 @@ export type TicketRule = {
   created_at: string;
   updated_at: string;
 };
+
+// GET /api/reports/sla/
+export type SlaPeriodDays = 7 | 30 | 90;
+export type SlaNow = { breached: number; at_risk: number; paused: number; on_track: number; no_sla: number };
+export type SlaAttention = {
+  public_id: string; request_number: string; subject: string; priority: number; status: string;
+  assignment_group: string | null; technician: string | null;
+  state: "breached" | "at_risk"; target: "response" | "resolution"; due_at: string; paused: boolean;
+};
+export type SlaPeriod = { resolved: number; resolution_met_percent: number | null; responded: number; response_met_percent: number | null };
+export type SlaTrendDay = { date: string; met: number; breached: number };
+export type SlaBreakdown = {
+  key: number | null; name: string; resolved: number; resolution_met_percent: number | null;
+  responded: number; response_met_percent: number | null; open_breached: number;
+};
+export type SlaReport = {
+  generated_at: string; days: number; now: SlaNow; attention: SlaAttention[]; period: SlaPeriod;
+  trend: SlaTrendDay[]; by_group: SlaBreakdown[]; by_priority: SlaBreakdown[];
+};
